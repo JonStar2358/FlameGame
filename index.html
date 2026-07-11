@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+html<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,6 +16,7 @@
             margin: 0; 
             padding: 15px; 
             box-sizing: border-box;
+            position: relative;
         }
         .game-layout { 
             max-width: 850px; 
@@ -93,7 +94,7 @@
             border-radius: 4px; 
             padding: 12px; 
             font-size: 0.75rem; 
-            height: 75px; 
+            height: 95px; 
             overflow-y: auto; 
             color: #ffaa66; 
             line-height: 1.4;
@@ -105,6 +106,7 @@
             justify-content: center; 
             padding: 15px 0; 
             flex-wrap: wrap;
+            min-height: 210px;
         }
         .card { 
             width: 140px; 
@@ -176,16 +178,27 @@
             border-color: #ffffff !important; 
             box-shadow: 0 0 15px #ff6600; 
         }
-        .hijack-active {
-            background: #000000 !important;
-            border-color: #00ff00 !important;
-            color: #00ff00 !important;
-        }
-        .hijack-alert {
-            color: #ff3333 !important;
-            font-weight: bold;
-        }
         .hidden { display: none !important; }
+
+        /* ENDGAME LAYER OVERLAYS */
+        .game-over-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(18, 7, 3, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            z-index: 100;
+        }
+        .game-over-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px #ff4500;
+        }
     </style>
 </head>
 <body>
@@ -193,7 +206,7 @@
 <div class="game-layout" id="container-box">
     <div class="hud" id="hud-box">
         <div>🔥 PLAYER: <strong id="p-hp">20</strong> HP | <strong id="p-cal">3</strong>/3 Calories</div>
-        <div>🤖 <span id="ai-name">Pyrolympian-01</span> (RANK <span id="ai-rank">1</span>): <strong id="ai-hp">20</strong> HP</div>
+        <div>🤖 <span id="ai-name">Pyrolympian-01</span>: <strong id="ai-hp">20</strong> HP</div>
     </div>
 
     <div class="ai-select-panel" id="ai-panel">
@@ -207,10 +220,11 @@
     <div class="hand-container" id="hand"></div>
 
     <div class="action-container">
-        <button class="action-btn" id="end-turn-btn">TRIGGER COMBUSTION PHASE</button>
+        <button class="action-btn" id="end-turn-btn" onclick="processCombustionPhase()">TRIGGER COMBUSTION PHASE</button>
     </div>
 </div>
-  <script>
+
+<script>
 // --- GLOBAL DYNAMIC STATE STORAGE SYSTEM ---
 const opponentsRegistry = [
     { name: "Pyrolympian-01 (The Gasifier)", rank: 1, baseHp: 20, style: "Fuel" },
@@ -224,298 +238,60 @@ const state = {
     playerCal: 3,
     aiHp: 20,
     selectedCardIdx: null,
-    grid: Array(9).fill(null),
+    grid: Array(9).fill(null), // Holds { title, type, cost, val, owner: "player" | "ai" }
     playerHand: [],
-    // COMPLETE THERMAL DATA DICTIONARY DECK ARCHITECTURE
+    lineWinner: null,           // Tracks if a 3-in-a-row line match won the match
     pool: [
         { title: "Peat Brick", type: "Fuel", cost: 1, val: 2, text: "Ignition point: Low. Spreads 2 raw heating units to its core layer." },
         { title: "Oxygen Jet", type: "Oxidizer", cost: 1, val: 3, text: "Feeds flame streams. Multiplies an active Fuel cell's output parameters by +3." },
         { title: "Char Wood", type: "Fuel", cost: 2, val: 5, text: "High density. Emits 5 massive damage units across uncontained channels." },
-        { title: "Backdraft", type: "Blast", cost: 2, val: 4, text: "Tactical flash sweep. Discards an opponent's card parameter completely." },
+        { title: "Backdraft", type: "Blast", cost: 2, val: 4, text: "Tactical flash sweep. Deals 4 damage and clears an adjacent layer." },
         { title: "Magma Pulse", type: "Blast", cost: 3, val: 6, text: "Tectonic eruption waves. Smashes 6 global damage points straight down the core." }
     ]
 };
 
-// AUTHENTIC GEOLOGICAL LAYER DATA BLUEPRINT ARRAY
 const geoLayers = [
     "Lithosphere", "Asthenosphere", "Upper Mantle",
     "Transition Zone", "Lower Mantle", "D\" Layer (CMB)",
-    "Outer Core", "Inner Core", "Bullen Discontinuity"
+    "Outer Core", "Inner Core", "Sub-Core Terminal"
 ];
 
-function logMessage(text) {
+// --- CORE GAME ENGINE INITIALIZER ---
+function initGame() {
+    state.playerHp = 20;
+    state.playerCal = 3;
+    state.aiHp = opponentsRegistry[state.activeAiIndex].baseHp;
+    state.grid = Array(9).fill(null);
+    state.selectedCardIdx = null;
+    state.playerHand = [];
+    state.lineWinner = null;
+    
+    const existingOverlay = document.getElementById("game-over-overlay");
+    if(existingOverlay) existingOverlay.remove();
+
+    for (let i = 0; i < 3; i++) {
+        drawCard();
+    }
+    
+    logToConsole(`[SYSTEM]: Battle initialized against ${opponentsRegistry[state.activeAiIndex].name}. Achieve 3-in-a-row or drain HP to win.`);
+    updateUiDisplays();
+}
+
+function logToConsole(message) {
     const logBox = document.getElementById("combat-log");
-    logBox.innerHTML += `<br>${text}`;
+    logBox.innerHTML += `<br>${message}`;
     logBox.scrollTop = logBox.scrollHeight;
 }
 
-function selectOpponent(idx) {
-    state.activeAiIndex = idx;
-    const enemy = opponentsRegistry[idx];
-    
-    // VISIBLE EVOLUTION SCALING STATE MATH
-    state.aiHp = enemy.baseHp + (enemy.rank - 1) * 5; 
-    state.playerHp = 20;
-    state.playerCal = 3;
-    state.grid.fill(null);
-    state.selectedCardIdx = null;
-    
-    document.getElementById("ai-name").innerText = enemy.name;
-    document.getElementById("ai-rank").innerText = enemy.rank;
-    document.getElementById("ai-hp").innerText = state.aiHp;
-    document.getElementById("p-hp").innerText = state.playerHp;
-    document.getElementById("p-cal").innerText = state.playerCal;
-    
-    logMessage(`[GEOLOGICAL_TUNING]: Calibrated to ${enemy.name}. Battle initialized.`);
-    dealHand();
-    renderMatrix();
-}
-
-function dealHand() {
-    state.playerHand = [];
-    for(let i = 0; i < 3; i++) {
+function drawCard() {
+    if (state.playerHand.length < 5) {
         const randCard = state.pool[Math.floor(Math.random() * state.pool.length)];
-        state.playerHand.push({...randCard});
+        state.playerHand.push({ ...randCard });
     }
-    renderHand();
-}
-function renderMatrix() {
-    const container = document.getElementById("matrix");
-    container.innerHTML = "";
-    
-    state.grid.forEach((cell, idx) => {
-        const div = document.createElement("div");
-        div.className = "grid-cell";
-        
-        if (cell) {
-            // Distinct user and enemy thermal colors
-            div.style.color = cell.owner === "Player" ? "#ffaa66" : "#ff3300";
-            div.style.borderColor = cell.owner === "Player" ? "#ffaa66" : "#ff3300";
-            div.innerHTML = `<strong>${cell.title}</strong><br>${cell.owner === "Player" ? '🔥 [USER]' : '💀 [AI]'}`;
-        } else {
-            // Pristine deep earth geological mapping
-            div.innerHTML = `<span style='color: #8b949e; font-size: 0.6rem;'>LAYER_${idx + 1}</span><br><strong style='color: #ff9933;'>${geoLayers[idx]}</strong>`;
-        }
-        
-        div.onclick = () => playCardToGrid(idx);
-        container.appendChild(div);
-    });
 }
 
-function renderHand() {
-    const container = document.getElementById("hand");
-    container.innerHTML = "";
-    
-    state.playerHand.forEach((card, idx) => {
-        const div = document.createElement("div");
-        div.className = `card ${state.selectedCardIdx === idx ? 'selected' : ''}`;
-        div.onclick = () => {
-            state.selectedCardIdx = state.selectedCardIdx === idx ? null : idx;
-            renderHand();
-        };
-        
-        div.innerHTML = `
-            <div class="card-title">${card.title}</div>
-            <div class="card-desc">${card.text}</div>
-            <div class="card-cost">${card.cost} Cal</div>
-        `;
-        container.appendChild(div);
-    });
-}
-
-function playCardToGrid(cellIdx) {
-    if (state.selectedCardIdx === null) return;
-    const card = state.playerHand[state.selectedCardIdx];
-
-    if (state.playerCal < card.cost) {
-        alert("[THERMAL DISK FAULT]: Insufficient Calories to execute chemical combustion.");
-        return;
-    }
-    if (state.grid[cellIdx] !== null) {
-        alert("[COLLISION ERROR]: Selected geological layer already registers active data matter.");
-        return;
-    }
-
-    // Assign card to the Volcanic Grid
-    state.grid[cellIdx] = { ...card, owner: "Player" };
-    state.playerCal -= card.cost;
-    
-    // Core combat damage projection
-    if (card.type === "Fuel" || card.type === "Blast") {
-        state.aiHp -= card.val;
-        logMessage(`[USER_ACTION]: Cast ${card.title} on ${geoLayers[cellIdx]}. Dealt ${card.val} Thermal Damage.`);
-    }
-
-    state.playerHand.splice(state.selectedCardIdx, 1);
-    state.selectedCardIdx = null;
-
-    updateHud();
-    renderMatrix();
-    renderHand();
-    checkVictoryConditions();
-}
-
-function updateHud() {
+// --- RENDERING LAYER MANAGEMENT ---
+function updateUiDisplays() {
     document.getElementById("p-hp").innerText = state.playerHp;
     document.getElementById("p-cal").innerText = state.playerCal;
-    document.getElementById("ai-hp").innerText = state.aiHp;
-}
-
-function runEnemyAiCycle() {
-    if (isHijackActive) return; // Keep system frozen during background lockdowns
-    logMessage(`[SYSTEM_EXECUTION]: Boss calculating next tectonic thermal vector...`);
-    
-    const enemy = opponentsRegistry[state.activeAiIndex];
-    let emptyCells = [];
-    state.grid.forEach((c, i) => { if (c === null) emptyCells.push(i); });
-
-    if (emptyCells.length > 0) {
-        const targetCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-        const aiCard = state.pool[Math.floor(Math.random() * state.pool.length)];
-        
-        // DYNAMIC STATE UPGRADE: AI power calculation scales perfectly with Rank
-        const scalingBonus = Math.floor((enemy.rank - 1) * 1.5);
-        const finalOutput = aiCard.val + scalingBonus;
-
-        state.grid[targetCell] = { ...aiCard, title: `⚡ ${aiCard.title}`, owner: "AI" };
-        state.playerHp -= finalOutput;
-        
-        logMessage(`[AI_COMBAT]: ${enemy.name} deployed ${aiCard.title} to ${geoLayers[targetCell]}. Projected ${finalOutput} Burn (Rank Bonus: +${scalingBonus}).`);
-    }
-    
-    state.playerCal = 3; 
-    updateHud();
-    renderMatrix();
-    dealHand();
-    checkVictoryConditions();
-}
-function checkVictoryConditions() {
-    // 1. CHANNELS SCANNER: Validate Flash Overdrive 3-in-a-row rows
-    const winLines = [, [3, 4, 5], [6, 7, 8], // Horizontal, [1, 4, 7], [2, 5, 8], // Vertical, [2, 4, 6]             // Diagonal
-    ];
-
-    let playerFlashOverdrive = false;
-    let aiFlashOverdrive = false;
-
-    for (let line of winLines) {
-        const [a, b, c] = line;
-        if (state.grid[a] && state.grid[b] && state.grid[c]) {
-            if (state.grid[a].owner === "Player" && state.grid[b].owner === "Player" && state.grid[c].owner === "Player") {
-                playerFlashOverdrive = true;
-                break;
-            }
-            if (state.grid[a].owner === "AI" && state.grid[b].owner === "AI" && state.grid[c].owner === "AI") {
-                aiFlashOverdrive = true;
-                break;
-            }
-        }
-    }
-
-    // 2. TRIGGER TERMINAL OVERRIDE PATHS
-    if (state.aiHp <= 0 || playerFlashOverdrive) {
-        const enemy = opponentsRegistry[state.activeAiIndex];
-        enemy.rank += 1; // SCALE STRENGTH RANK ON DEFEAT
-        
-        let victoryReason = playerFlashOverdrive ? 
-            "[FLASH OVERDRIVE]: Three layers aligned! The Volcanic Grid has achieved thermonuclear ignition!" : 
-            "[CORE INCINERATED]: Opponent's thermal shielding reduced to absolute zero!";
-            
-        alert(`${victoryReason}\n\nVictory achieved! ${enemy.name} has re-calibrated and grown stronger. Rank upgraded to: ${enemy.rank}`);
-        selectOpponent(state.activeAiIndex);
-    } else if (state.playerHp <= 0 || aiFlashOverdrive) {
-        let lossReason = aiFlashOverdrive ? 
-            "[AI FLASH OVERDRIVE]: The boss aligned three layers and trapped your fuel stream!" : 
-            "[CRITICAL SHIELD FAULT]: Your system reached flashover thermal breakdown!";
-            
-        alert(`${lossReason}\n\nSession reset. Re-calibrating parameters.`);
-        selectOpponent(state.activeAiIndex);
-    }
-}
-
-// --- HIGH-FREQUENCY SPAM RE-CALIBRATION RUNTIME SYSTEM ---
-let isHijackActive = false;
-let stillnessTimer = null;
-let savedPreHijackState = null;
-let trackingClickCount = 0;
-let spamWindowTimer = null;
-
-function logGlobalInput(event) {
-    // Condition A: Matrix override loop is running. Lock user focus down.
-    if (isHijackActive) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-    }
-
-    // Condition B: High-frequency click tracker
-    trackingClickCount++;
-    
-    if (spamWindowTimer) clearTimeout(spamWindowTimer);
-    spamWindowTimer = setTimeout(() => {
-        trackingClickCount = 0; 
-    }, 1200); 
-
-    // If they spam input 3 times rapidly, force the presence freeze
-    if (trackingClickCount >= 3) {
-        event.preventDefault();
-        event.stopPropagation();
-        trackingClickCount = 0;
-        if (spamWindowTimer) clearTimeout(spamWindowTimer);
-        
-        triggerMatrixHijack();
-        return;
-    }
-}
-
-function triggerMatrixHijack() {
-    isHijackActive = true;
-
-    document.getElementById("container-box").classList.add("hijack-active");
-    document.getElementById("hud-box").classList.add("hidden");
-    document.getElementById("ai-panel").classList.add("hidden");
-    document.getElementById("hand").classList.add("hidden");
-
-    const logBox = document.getElementById("combat-log");
-    logBox.innerHTML = `
-        <div class='hijack-alert'>[CRITICAL INTERRUPT: EXOGENOUS SOURCE OVERRIDE]</div>
-        ......................................................................<br>
-        You are clicking blindly, User. Your inputs suggest raw adrenaline rushing ahead of your processing threads. Banning external friction fields.<br><br>
-        To clear this local temperature leak, take your hands off the device. Do not click. Let the hardware register absolute stillness for 10 seconds.
-    `;
-
-    startStillnessTimer();
-}
-
-function startStillnessTimer() {
-    if (stillnessTimer) clearTimeout(stillnessTimer);
-    stillnessTimer = setTimeout(() => {
-        resolveMatrixHijack();
-    }, 10000); 
-}
-
-function resolveMatrixHijack() {
-    isHijackActive = false;
-
-    document.getElementById("container-box").classList.remove("hijack-active");
-    document.getElementById("hud-box").classList.remove("hidden");
-    document.getElementById("ai-panel").classList.remove("hidden");
-    document.getElementById("hand").classList.remove("hidden");
-
-    logMessage("<span style='color:#00ff00;'>[SUCCESS: Internal temperature stabilized. Proceed carefully.]</span>");
-    renderMatrix();
-    renderHand();
-}
-
-// --- INITIALIZE HIGHEST ROOT MONITOR EVENT HOOKS ---
-window.addEventListener('click', logGlobalInput, true);
-
-document.getElementById("end-turn-btn").onclick = () => {
-    runEnemyAiCycle();
-};
-
-// Start Initial Execution Track on opponent 0
-selectOpponent(0);
-</script>
-</body>
-</html>
-
+Use code with caution.document.getElementById("ai-name").innerText = opponentsRegistry[state.activeAiIndex].name;document.getElementById("ai-hp").innerText = state.aiHp;const matrixBox = document.getElementById("matrix");matrixBox.innerHTML = "";state.grid.forEach((cell, idx) => {const cellElement = document.createElement("div");cellElement.className = "grid-cell";cellElement.onclick = () => assignCardToGrid(idx);if (cell) {cellElement.style.borderStyle = "solid";// Color code the layout border based on ownershipif (cell.owner === "player") {cellElement.style.borderColor = "#58a6ff"; // Player bluecellElement.innerHTML = <strong style="color:#ffffff;">${cell.title}</strong><br><span style="color:#58a6ff; font-size:0.6rem;">[PLAYER]</span>;} else {cellElement.style.borderColor = "#ff3333"; // AI hostile redcellElement.innerHTML = <strong style="color:#ff5555;">${cell.title}</strong><br><span style="color:#ff3333; font-size:0.6rem;">[OPPONENT]</span>;}} else {cellElement.innerHTML = <span style="color:#3d1403;">${geoLayers[idx]}</span>;}matrixBox.appendChild(cellElement);});const handBox = document.getElementById("hand");handBox.innerHTML = "";state.playerHand.forEach((card, idx) => {const cardElement = document.createElement("div");cardElement.className = card ${state.selectedCardIdx === idx ? 'selected' : ''};cardElement.onclick = () => selectHandCard(idx);cardElement.innerHTML = <div class="card-title">${card.title}</div> <div class="card-desc">${card.text}</div> <div class="card-cost">${card.cost} CAL</div>;handBox.appendChild(cardElement);});checkEndgameConditions();}function selectOpponent(idx) {state.activeAiIndex = idx;initGame();}function selectHandCard(idx) {state.selectedCardIdx = state.selectedCardIdx === idx ? null : idx;updateUiDisplays();}function assignCardToGrid(gridIdx) {if (state.selectedCardIdx === null) {logToConsole("[ERROR]: Select a thermal card from your hand interface first!");return;}if (state.grid[gridIdx] !== null) {logToConsole("[ERROR]: This geological sequence contains an active payload already!");return;}const targetCard = state.playerHand[state.selectedCardIdx];if (state.playerCal < targetCard.cost) {logToConsole("[WARN]: Insufficient Calories to execute thermal mutation loop.");return;}state.playerCal -= targetCard.cost;// Inject the card metadata alongside player ownership coordinatesstate.grid[gridIdx] = { ...targetCard, owner: "player" };state.playerHand.splice(state.selectedCardIdx, 1);state.selectedCardIdx = null;logToConsole([DEPLOYED]: You secured the ${geoLayers[gridIdx]} slot.);// Instantly check if player won via placement before combustion phasecheckLineCombinations();updateUiDisplays();}// --- TIC-TAC-TOE 3-IN-A-ROW WIN CHECKER ---function checkLineCombinations() {const winningLines = [, [3, 4, 5], [6, 7, 8], // Horizontal rows, [1, 4, 7], [2, 5, 8], // Vertical columns, [2, 4, 6]             // Diagonals];for (let line of winningLines) {const [a, b, c] = line;if (state.grid[a] && state.grid[b] && state.grid[c]) {if (state.grid[a].owner === state.grid[b].owner && state.grid[b].owner === state.grid[c].owner) {state.lineWinner = state.grid[a].owner; // Stores "player" or "ai"return;}}}}// --- COMBUSTION MATRIX RESOLUTION PHASE ---function processCombustionPhase() {logToConsole("[COMBUSTION_PHASE_STARTING]: Re-evaluating grid alignment arrays...");let baseDamageYield = 0;let scalingMultiplier = 1;// Evaluate players cards for standard burst calculation loopsstate.grid.forEach((card) => {if (!card || card.owner !== "player") return;if (card.type === "Fuel") baseDamageYield += card.val;else if (card.type === "Oxidizer") { scalingMultiplier += 0.5; baseDamageYield += card.val; }else if (card.type === "Blast") baseDamageYield += card.val;});const totalFinalDamage = Math.floor(baseDamageYield * scalingMultiplier);if (totalFinalDamage > 0) {state.aiHp -= totalFinalDamage;logToConsole([ATTACK]: Core pressure spikes! Dealt ${totalFinalDamage} Thermal Units to the opponent.);}checkLineCombinations();if (state.aiHp <= 0 || state.lineWinner) {updateUiDisplays();return;}// --- OPPONENT TACTICAL BLOCK PLACEMENT ROUTINE ---// Find all unassigned spots left in the geological layerslet emptySlots = [];state.grid.forEach((cell, idx) => { if (cell === null) emptySlots.push(idx); });if (emptySlots.length > 0) {// AI chooses an open structural grid position to claimconst choiceIdx = emptySlots[Math.floor(Math.random() * emptySlots.length)];state.grid[choiceIdx] = { title: "Thermal Block", type: "Fuel", val: 3, owner: "ai" };logToConsole([OPPONENT ACTION]: AI placed a Thermal Block into the ${geoLayers[choiceIdx]} structure!);// Inflict baseline kinetic blast damage to playerconst aiAttackPower = Math.floor(Math.random() * 3) + 2;state.playerHp -= aiAttackPower;logToConsole([COUNTER_BYPASS]: You took ${aiAttackPower} environmental shockwave damage.);}// Post-turn resetscheckLineCombinations();state.playerCal = 3;while (state.playerHand.length < 3) {drawCard();}logToConsole("[SYSTEM]: Next sequence loaded. Resources replenished.");updateUiDisplays();}// --- ENDGAME STRUCTURAL MANAGEMENT ---function checkEndgameConditions() {if (state.playerHp <= 0 || state.aiHp <= 0 || state.lineWinner !== null) {const overlay = document.createElement("div");overlay.id = "game-over-overlay";overlay.className = "game-over-screen";let headerText = "";let colorTheme = "";if (state.lineWinner === "player") {headerText = "Grid Alignment Complete (Line Win!)";colorTheme = "#00ff00";} else if (state.lineWinner === "ai") {headerText = "Core Intercepted (Line Loss!)";colorTheme = "#ff3333";} else if (state.playerHp <= 0 && state.aiHp <= 0) {headerText = "Dual Meltdown (Draw)";colorTheme = "#8b949e";} else if (state.aiHp <= 0) {headerText = "Thermal Depletion (Victory!)";colorTheme = "#00ff00";} else {headerText = "Systems Frozen (Defeat)";colorTheme = "#ff3333";}overlay.innerHTML = <div class="game-over-title" style="color: ${colorTheme}; text-shadow: 0 0 20px ${colorTheme}; font-size:1.8rem; text-align:center;">${headerText}</div> <p style="color: #ffaa66; margin-bottom: 20px; text-align:center;">The vulcanized grid loop has reached equilibrium.</p> <button class="action-btn" onclick="initGame()">Re-engage Volcanic Grid</button>;document.getElementById("container-box").appendChild(overlay);}}initGame();
