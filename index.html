@@ -279,4 +279,100 @@ function updateUiDisplays() {
                 cellElement.innerHTML = "<span style='color:#58a6ff; font-weight:bold;'>🔥 ME</span><br><span style='color:#8b949e; font-size:0.55rem;'>" + geoLayers[idx] + "</span>";
             } else {
                 cellElement.style.borderColor = "#ff3333";
-cellElement.innerHTML = "🤖 AI" + geoLayers[idx] + "";}}else {cellElement.innerHTML = "" + geoLayers[idx] + "";}matrixBox.appendChild(cellElement);});var handBox = document.getElementById("hand");handBox.innerHTML = "";state.playerHand.forEach(function(card, idx) {var cardElement = document.createElement("div");cardElement.className = "card " + (state.selectedCardIdx === idx ? "selected" : "");cardElement.onclick = function() { selectHandCard(idx); };cardElement.innerHTML = <div class="card-title">${card.title}</div> <div class="card-desc">${card.text}</div> <div class="card-cost">${card.cost} CAL</div>;handBox.appendChild(cardElement);});checkEndgameConditions();}function initGame() {state.playerHp = 20;state.playerCal = 3;var activeOpponent = opponentsRegistry[state.activeAiIndex] || { name: "Unknown Entity", baseHp: 20 };state.aiHp = activeOpponent.baseHp || 20;state.grid = [null, null, null, null, null, null, null, null, null];state.claimMap = [null, null, null, null, null, null, null, null, null];state.selectedCardIdx = null;state.playerHand = [];state.lineWinner = null;var existingOverlay = document.getElementById("game-over-overlay");if (existingOverlay) existingOverlay.remove();for (var i = 0; i < 3; i++) {drawCard();}logToConsole("[SYSTEM]: Core breach engaged against " + activeOpponent.name + ".");updateUiDisplays();}function selectOpponent(idx) {state.activeAiIndex = idx;initGame();}function logToConsole(message) {var logBox = document.getElementById("combat-log");if (logBox) {logBox.innerHTML += "" + message;logBox.scrollTop = logBox.scrollHeight;}}function drawCard() {if (state.playerHand.length < 5) {var randCard = state.pool[Math.floor(Math.random() * state.pool.length)];state.playerHand.push(Object.assign({}, randCard));}}function selectHandCard(idx) {state.selectedCardIdx = state.selectedCardIdx === idx ? null : idx;updateUiDisplays();}function assignCardToGrid(gridIdx) {if (state.selectedCardIdx === null) {logToConsole("[ERROR]: Select a thermal card from your hand interface first!");return;}if (state.grid[gridIdx] !== null || state.claimMap[gridIdx] !== null) {logToConsole("[ERROR]: This geological sequence layer is occupied!");return;}var targetCard = state.playerHand[state.selectedCardIdx];if (state.playerCal < targetCard.cost) {logToConsole("[WARN]: Insufficient Calories to execute thermal loop.");return;}state.playerCal -= targetCard.cost;state.grid[gridIdx] = Object.assign({}, targetCard);state.claimMap[gridIdx] = "player";state.playerHand.splice(state.selectedCardIdx, 1);state.selectedCardIdx = null;logToConsole("[DEPLOYED]: " + targetCard.title + " assigned to " + geoLayers[gridIdx] + ".");updateUiDisplays();}function processCombustionPhase() {logToConsole("[COMBUSTION_PHASE]: Extracting values...");var baseDamageYield = 0;var scalingMultiplier = 1;state.grid.forEach(function(card) {if (!card) return;if (card.type === "Fuel") baseDamageYield += card.val;else if (card.type === "Oxidizer") { scalingMultiplier += 0.4; baseDamageYield += card.val; }else if (card.type === "Blast") baseDamageYield += card.val;});var totalFinalDamage = Math.floor(baseDamageYield * scalingMultiplier);if (totalFinalDamage > 0) {state.aiHp -= totalFinalDamage;logToConsole("[BURST SUCCESS]: Matrix erupted! Dealt " + totalFinalDamage + " damage to opponent.");} else {logToConsole("[INFO]: No pending active cards on grid to combust.");}state.grid = [null, null, null, null, null, null, null, null, null];verifyMatrixGridMatches();if (state.aiHp <= 0 || state.lineWinner) {updateUiDisplays();return;}// --- OPPONENT COUNTER ACTION TRACKER ---var emptySlots = [];state.claimMap.forEach(function(token, idx) { if (token === null) emptySlots.push(idx); });if (emptySlots.length > 0) {var choiceIdx = emptySlots[Math.floor(Math.random() * emptySlots.length)];state.claimMap[choiceIdx] = "ai";logToConsole("[OPPONENT]: AI hijacked the " + geoLayers[choiceIdx] + " layer slot.");var aiAttackPower = Math.floor(Math.random() * 3) + 2;state.playerHp -= aiAttackPower;logToConsole("[COUNTER DAMAGE]: AI hit you back for " + aiAttackPower + " damage.");}verifyMatrixGridMatches();state.playerCal = 3;while (state.playerHand.length < 3) {drawCard();}logToConsole("[SYSTEM]: Geological matrices stabilized. Hand cards dealt.");updateUiDisplays();}function checkEndgameConditions() {if (state.playerHp <= 0 || state.aiHp <= 0 || state.lineWinner !== null) {var overlay = document.createElement("div");overlay.id = "game-over-overlay";overlay.className = "game-over-screen";var headerText = "";var colorTheme = "";if (state.lineWinner === "player") {headerText = "Grid Aligned (Line Victory!)";colorTheme = "#00ff00";} else if (state.lineWinner === "ai") {headerText = "Core Intercepted (Line Defeat!)";colorTheme = "#ff3333";} else if (state.playerHp <= 0 && state.aiHp <= 0) {headerText = "Dual Meltdown (Draw)";colorTheme = "#8b949e";} else if (state.aiHp <= 0) {headerText = "Core Overwhelmed (HP Victory!)";colorTheme = "#00ff00";} else {headerText = "Thermal Freeze (HP Defeat)";colorTheme = "#ff3333";}overlay.innerHTML = <div class="game-over-title" style="color: ${colorTheme}; text-shadow: 0 0 20px ${colorTheme}; text-align:center;">${headerText}</div> <p style="color: #ffaa66; margin-bottom: 20px; text-align:center;">Pyrodynamic threshold reached parameters.</p> <button class="action-btn" onclick="initGame()">Re-engage Volcanic Grid</button>;document.getElementById("container-box").appendChild(overlay);}}// Initial initialization load linkinitGame();
+                function updateUiDisplays() {
+    document.getElementById('p-hp').innerText = state.playerHp;
+    document.getElementById('p-cal').innerText = state.playerCal;
+    
+    var currentOpponent = opponentsRegistry[state.activeAiIndex] || { name: 'Unknown Entity', baseHp: 20 };
+    document.getElementById('ai-name').innerText = currentOpponent.name;
+    document.getElementById('ai-hp').innerText = state.aiHp;
+
+    var matrixBox = document.getElementById('matrix');
+    matrixBox.innerHTML = '';
+    
+    state.grid.forEach(function(cell, idx) {
+        var cellElement = document.createElement('div');
+        cellElement.className = 'grid-cell';
+        cellElement.onclick = function() { assignCardToGrid(idx); };
+        
+        if (cell) {
+            cellElement.style.borderStyle = 'solid';
+            cellElement.style.borderColor = '#ffaa00';
+            
+            var cellBold = document.createElement('strong');
+            cellBold.style.color = '#ffffff';
+            cellBold.textContent = cell.title;
+            cellElement.appendChild(cellBold);
+            
+            var cellBreak = document.createElement('br');
+            cellElement.appendChild(cellBreak);
+            
+            var cellSpan = document.createElement('span');
+            cellSpan.style.color = '#ffaa00';
+            cellSpan.style.fontSize = '0.6rem';
+            cellSpan.textContent = '[READY]';
+            cellElement.appendChild(cellSpan);
+        } 
+        else if (state.claimMap[idx]) {
+            cellElement.style.borderStyle = 'solid';
+            
+            var claimSpan = document.createElement('span');
+            claimSpan.style.fontWeight = 'bold';
+            
+            if (state.claimMap[idx] === 'player') {
+                cellElement.style.borderColor = '#58a6ff';
+                claimSpan.style.color = '#58a6ff';
+                claimSpan.textContent = '🔥 ME';
+            } else {
+                cellElement.style.borderColor = '#ff3333';
+                claimSpan.style.color = '#ff3333';
+                claimSpan.textContent = '🤖 AI';
+            }
+            cellElement.appendChild(claimSpan);
+            
+            var claimBreak = document.createElement('br');
+            cellElement.appendChild(claimBreak);
+            
+            var layerNameSpan = document.createElement('span');
+            layerNameSpan.style.color = '#8b949e';
+            layerNameSpan.style.fontSize = '0.55rem';
+            layerNameSpan.textContent = geoLayers[idx];
+            cellElement.appendChild(layerNameSpan);
+        } 
+        else {
+            var vacantSpan = document.createElement('span');
+            vacantSpan.style.color = '#3d1403';
+            vacantSpan.textContent = geoLayers[idx];
+            cellElement.appendChild(vacantSpan);
+        }
+        matrixBox.appendChild(cellElement);
+    });
+
+    var handBox = document.getElementById('hand');
+    handBox.innerHTML = '';
+    
+    state.playerHand.forEach(function(card, idx) {
+        var cardElement = document.createElement('div');
+        cardElement.className = 'card ' + (state.selectedCardIdx === idx ? 'selected' : '');
+        cardElement.onclick = function() { selectHandCard(idx); };
+        
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'card-title';
+        titleDiv.textContent = card.title;
+        cardElement.appendChild(titleDiv);
+        
+        var descDiv = document.createElement('div');
+        descDiv.className = 'card-desc';
+        descDiv.textContent = card.text;
+        cardElement.appendChild(descDiv);
+        
+        var costDiv = document.createElement('div');
+        costDiv.className = 'card-cost';
+        costDiv.textContent = card.cost + ' CAL';
+        cardElement.appendChild(costDiv);
+        
+        handBox.appendChild(cardElement);
+    });
+
+    checkEndgameConditions();
+}
