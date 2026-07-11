@@ -195,14 +195,14 @@
 </div>
 
 <script>
-// --- GLOBAL DATA REGISTRY ---
-const opponentsRegistry = [
+// --- INITIAL DATA ASSIGNMENT SYSTEM ---
+var opponentsRegistry = [
     { name: "Pyrolympian-01 (The Gasifier)", baseHp: 20 },
     { name: "Dynamancer-02 (The Chemical Ratio)", baseHp: 22 },
     { name: "Flame Beautitian-03 (The Subsonic Front)", baseHp: 25 }
 ];
 
-const state = {
+var state = {
     activeAiIndex: 0,
     playerHp: 20,
     playerCal: 3,
@@ -221,233 +221,62 @@ const state = {
     ]
 };
 
-const geoLayers = [
+var geoLayers = [
     "Lithosphere", "Asthenosphere", "Upper Mantle",
     "Transition Zone", "Lower Mantle", "D\" Layer (CMB)",
     "Outer Core", "Inner Core", "Sub-Core Terminal"
 ];
 
-// --- DIAGNOSTIC ERROR DECODER ---
-function runDiagnosticCheck(contextMessage, errorObject) {
-    console.error(`[DIAGNOSTIC CRASH]: ${contextMessage}`, errorObject);
-    
-    // Force the error to print directly inside the on-screen combat log box
-    const logBox = document.getElementById("combat-log");
-    if (logBox) {
-        logBox.innerHTML += `
-            <br><span style="color: #ff3333; font-weight: bold;">⚠️ CRITICAL COMPILER ERROR INDIE TERMINAL</span>
-            <br><span style="color: #ffaa66;">Context: ${contextMessage}</span>
-            <br><span style="color: #ffffff; background: #551111; padding: 2px 4px;">Error: ${errorObject.message}</span>
-            <br><span style="color: #8b949e; font-size: 0.65rem;">Active AI Index: ${state.activeAiIndex}</span>
-            <br><span style="color: #8b949e; font-size: 0.65rem;">Registry State: ${JSON.stringify(opponentsRegistry)}</span>
-        `;
-        logBox.scrollTop = logBox.scrollHeight;
-    }
-}
-
+// --- TEXT-STRING-BASED SCANNER MACHINE ---
 function checkLineWinner(a, b, c) {
-    try {
-        if (state.claimMap[a] && state.claimMap[a] === state.claimMap[b] && state.claimMap[b] === state.claimMap[c]) {
-            state.lineWinner = state.claimMap[a];
-            return true;
-        }
-        return false;
-    } catch (err) {
-        runDiagnosticCheck("Failed during line matrix scan.", err);
-        return false;
+    var ownerA = state.claimMap[a];
+    var ownerB = state.claimMap[b];
+    var ownerC = state.claimMap[c];
+    if (ownerA !== null && ownerA === ownerB && ownerB === ownerC) {
+        state.lineWinner = ownerA;
+        return true;
     }
+    return false;
 }
 
 function verifyMatrixGridMatches() {
-    checkLineWinner(0, 1, 2);
-    checkLineWinner(3, 4, 5);
-    checkLineWinner(6, 7, 8);
-    checkLineWinner(0, 3, 6);
-    checkLineWinner(1, 4, 7);
-    checkLineWinner(2, 5, 8);
-    checkLineWinner(0, 4, 8);
-    checkLineWinner(2, 4, 6);
+    if (checkLineWinner(0, 1, 2)) return;
+    if (checkLineWinner(3, 4, 5)) return;
+    if (checkLineWinner(6, 7, 8)) return;
+    if (checkLineWinner(0, 3, 6)) return;
+    if (checkLineWinner(1, 4, 7)) return;
+    if (checkLineWinner(2, 5, 8)) return;
+    if (checkLineWinner(0, 4, 8)) return;
+    if (checkLineWinner(2, 4, 6)) return;
 }
 
+// --- INTERACTIVE ACTIONS & GAME LOOP PIPELINE ---
 function updateUiDisplays() {
-    try {
-        document.getElementById("p-hp").innerText = state.playerHp;
-        document.getElementById("p-cal").innerText = state.playerCal;
+    document.getElementById("p-hp").innerText = state.playerHp;
+    document.getElementById("p-cal").innerText = state.playerCal;
+    
+    var currentOpponent = opponentsRegistry[state.activeAiIndex] || { name: "Unknown Entity", baseHp: 20 };
+    document.getElementById("ai-name").innerText = currentOpponent.name;
+    document.getElementById("ai-hp").innerText = state.aiHp;
+
+    var matrixBox = document.getElementById("matrix");
+    matrixBox.innerHTML = "";
+    
+    state.grid.forEach(function(cell, idx) {
+        var cellElement = document.createElement("div");
+        cellElement.className = "grid-cell";
+        cellElement.onclick = function() { assignCardToGrid(idx); };
         
-        const currentOpponent = opponentsRegistry[state.activeAiIndex] || { name: "Unknown Entity", baseHp: 20 };
-        document.getElementById("ai-name").innerText = currentOpponent.name;
-        document.getElementById("ai-hp").innerText = state.aiHp;
-
-        const matrixBox = document.getElementById("matrix");
-        matrixBox.innerHTML = "";
-        
-        state.grid.forEach((cell, idx) => {
-            const cellElement = document.createElement("div");
-            cellElement.className = "grid-cell";
-            cellElement.onclick = () => assignCardToGrid(idx);
-            
-            if (cell) {
-                cellElement.style.borderStyle = "solid";
-                cellElement.style.borderColor = "#ffaa00";
-                cellElement.innerHTML = `<strong style="color:#ffffff;">${cell.title}</strong><br><span style="color:#ffaa00; font-size:0.6rem;">[READY]</span>`;
-            } 
-            else if (state.claimMap[idx]) {
-                cellElement.style.borderStyle = "solid";
-                if (state.claimMap[idx] === "player") {
-                    cellElement.style.borderColor = "#58a6ff";
-                    cellElement.innerHTML = `<span style="color:#58a6ff; font-weight:bold;">🔥 ME</span><br><span style="color:#8b949e; font-size:0.55rem;">${geoLayers[idx]}</span>`;
-                } else {
-                    cellElement.style.borderColor = "#ff3333";
-                    cellElement.innerHTML = `<span style="color:#ff3333; font-weight:bold;">🤖 AI</span><br><span style="color:#8b949e; font-size:0.55rem;">${geoLayers[idx]}</span>`;
-                }
-            } 
-            else {
-                cellElement.innerHTML = `<span style="color:#3d1403;">${geoLayers[idx]}</span>`;
-            }
-            matrixBox.appendChild(cellElement);
-        });
-
-        const handBox = document.getElementById("hand");
-        handBox.innerHTML = "";
-        state.playerHand.forEach((card, idx) => {
-            const cardElement = document.createElement("div");
-            cardElement.className = `card ${state.selectedCardIdx === idx ? 'selected' : ''}`;
-            cardElement.onclick = () => selectHandCard(idx);
-            
-            cardElement.innerHTML = `
-                <div class="card-title">${card.title}</div>
-                <div class="card-desc">${card.text}</div>
-                <div class="card-cost">${card.cost} CAL</div>
-            `;
-            handBox.appendChild(cardElement);
-        });
-
-        checkEndgameConditions();
-    } catch (err) {
-        runDiagnosticCheck("UI Render frame draw failed.", err);
-    }
-}
-
-function initGame() {
-    try {
-        state.playerHp = 20;
-        state.playerCal = 3;
-        
-        const activeOpponent = opponentsRegistry[state.activeAiIndex] || { name: "Unknown Entity", baseHp: 20 };
-        state.aiHp = activeOpponent.baseHp || 20;
-        
-        state.grid = [null, null, null, null, null, null, null, null, null];
-        state.claimMap = [null, null, null, null, null, null, null, null, null];
-        state.selectedCardIdx = null;
-        state.playerHand = [];
-        state.lineWinner = null;
-        
-        const existingOverlay = document.getElementById("game-over-overlay");
-        if (existingOverlay) existingOverlay.remove();
-
-        for (let i = 0; i < 3; i++) {
-            drawCard();
-        }
-        
-        logToConsole(`[SYSTEM]: Core breach engaged against ${activeOpponent.name}.`);
-        updateUiDisplays();
-    } catch (err) {
-        runDiagnosticCheck("Game loop initialization crashed.", err);
-    }
-}
-
-function selectOpponent(idx) {
-    try {
-        state.activeAiIndex = idx;
-        initGame();
-    } catch (err) {
-        runDiagnosticCheck(`Boss Selection click failed on index ${idx}.`, err);
-    }
-}
-
-function logToConsole(message) {
-    const logBox = document.getElementById("combat-log");
-    if (logBox) {
-        logBox.innerHTML += `<br>${message}`;
-        logBox.scrollTop = logBox.scrollHeight;
-    }
-}
-
-function drawCard() {
-    if (state.playerHand.length < 5) {
-        const randCard = state.pool[Math.floor(Math.random() * state.pool.length)];
-        state.playerHand.push({ ...randCard });
-    }
-}
-
-function selectHandCard(idx) {
-    state.selectedCardIdx = state.selectedCardIdx === idx ? null : idx;
-    updateUiDisplays();
-}
-
-function assignCardToGrid(gridIdx) {
-    try {
-        if (state.selectedCardIdx === null) {
-            logToConsole("[ERROR]: Select a thermal card from your hand interface first!");
-            return;
-        }
-        
-        if (state.grid[gridIdx] !== null || state.claimMap[gridIdx] !== null) {
-            logToConsole("[ERROR]: This geological sequence layer is occupied!");
-            return;
-        }
-
-        const targetCard = state.playerHand[state.selectedCardIdx];
-
-        if (state.playerCal < targetCard.cost) {
-            logToConsole("[WARN]: Insufficient Calories to execute thermal loop.");
-            return;
-        }
-
-        state.playerCal -= targetCard.cost;
-        state.grid[gridIdx] = { ...targetCard };
-        state.claimMap[gridIdx] = "player"; 
-        state.playerHand.splice(state.selectedCardIdx, 1);
-        state.selectedCardIdx = null;
-
-        logToConsole(`[DEPLOYED]: ${targetCard.title} assigned to ${geoLayers[gridIdx]}.`);
-        updateUiDisplays();
-    } catch (err) {
-        runDiagnosticCheck("Card grid placement matrix failure.", err);
-    }
-}
-
-function processCombustionPhase() {
-    try {
-        logToConsole("<span style='color:#ffffff;'>[COMBUSTION_PHASE]: Extracting values...</span>");
-        
-        let baseDamageYield = 0;
-        let scalingMultiplier = 1;
-
-        state.grid.forEach((card) => {
-            if (!card) return;
-            if (card.type === "Fuel") baseDamageYield += card.val;
-            else if (card.type === "Oxidizer") { scalingMultiplier += 0.4; baseDamageYield += card.val; }
-            else if (card.type === "Blast") baseDamageYield += card.val;
-        });
-
-        const totalFinalDamage = Math.floor(baseDamageYield * scalingMultiplier);
-
-        if (totalFinalDamage > 0) {
-            state.aiHp -= totalFinalDamage;
-            logToConsole(`[BURST SUCCESS]: Matrix erupted! Dealt ${totalFinalDamage} damage to opponent.`);
-        } else {
-            logToConsole("[INFO]: No pending active cards on grid to combust.");
-        }
-
-        state.grid = [null, null, null, null, null, null, null, null, null];
-
-        verifyMatrixGridMatches();
-        if (state.aiHp <= 0 || state.lineWinner) {
-            updateUiDisplays();
-            return;
-        }
-
-        // --- OPPONENT COUNTER ACTION ---
-        let emptySlots = [];
-state.claimMap.forEach((token, idx) => { if (token === null) emptySlots.push(idx); });if (emptySlots.length > 0) {const choiceIdx = emptySlots[Math.floor(Math.random() * emptySlots.length)];state.claimMap[choiceIdx] = "ai";logToConsole([OPPONENT]: AI hijacked the ${geoLayers[choiceIdx]} layer slot.);const aiAttackPower = Math.floor(Math.random() * 3) + 2;state.playerHp -= aiAttackPower;logToConsole([COUNTER DAMAGE]: AI hit you back for ${aiAttackPower} damage.);}verifyMatrixGridMatches();state.playerCal = 3;while (state.playerHand.length < 3) {drawCard();}logToConsole("[SYSTEM]: Geological matrices stabilized. Hand cards dealt.");updateUiDisplays();} catch (err) {runDiagnosticCheck("Combustion phase loop crashed.", err);}}function checkEndgameConditions() {try {if (state.playerHp <= 0 || state.aiHp <= 0 || state.lineWinner !== null) {const overlay = document.createElement("div");overlay.id = "game-over-overlay";overlay.className = "game-over-screen";let headerText = "";let colorTheme = "";if (state.lineWinner === "player") {headerText = "Grid Aligned (Line Victory!)";colorTheme = "#00ff00";} else if (state.lineWinner === "ai") {headerText = "Core Intercepted (Line Defeat!)";colorTheme = "#ff3333";} else if (state.playerHp <= 0 && state.aiHp <= 0) {headerText = "Dual Meltdown (Draw)";colorTheme = "#8b949e";} else if (state.aiHp <= 0) {headerText = "Core Overwhelmed (HP Victory!)";colorTheme = "#00ff00";} else {headerText = "Thermal Freeze (HP Defeat)";colorTheme = "#ff3333";}overlay.innerHTML = <div class="game-over-title" style="color: ${colorTheme}; text-shadow: 0 0 20px ${colorTheme}; text-align:center;">${headerText}</div> <p style="color: #ffaa66; margin-bottom: 20px; text-align:center;">Pyrodynamic threshold reached parameters.</p> <button class="action-btn" onclick="initGame()">Re-engage Volcanic Grid</button>;document.getElementById("container-box").appendChild(overlay);}} catch (err) {runDiagnosticCheck("Endgame state evaluation failed.", err);}}// Initial engine activation hooksinitGame();
+        if (cell) {
+            cellElement.style.borderStyle = "solid";
+            cellElement.style.borderColor = "#ffaa00";
+            cellElement.innerHTML = "<strong style='color:#ffffff;'>" + cell.title + "</strong><br><span style='color:#ffaa00; font-size:0.6rem;'>[READY]</span>";
+        } 
+        else if (state.claimMap[idx]) {
+            cellElement.style.borderStyle = "solid";
+            if (state.claimMap[idx] === "player") {
+                cellElement.style.borderColor = "#58a6ff";
+                cellElement.innerHTML = "<span style='color:#58a6ff; font-weight:bold;'>🔥 ME</span><br><span style='color:#8b949e; font-size:0.55rem;'>" + geoLayers[idx] + "</span>";
+            } else {
+                cellElement.style.borderColor = "#ff3333";
+cellElement.innerHTML = "🤖 AI" + geoLayers[idx] + "";}}else {cellElement.innerHTML = "" + geoLayers[idx] + "";}matrixBox.appendChild(cellElement);});var handBox = document.getElementById("hand");handBox.innerHTML = "";state.playerHand.forEach(function(card, idx) {var cardElement = document.createElement("div");cardElement.className = "card " + (state.selectedCardIdx === idx ? "selected" : "");cardElement.onclick = function() { selectHandCard(idx); };cardElement.innerHTML = <div class="card-title">${card.title}</div> <div class="card-desc">${card.text}</div> <div class="card-cost">${card.cost} CAL</div>;handBox.appendChild(cardElement);});checkEndgameConditions();}function initGame() {state.playerHp = 20;state.playerCal = 3;var activeOpponent = opponentsRegistry[state.activeAiIndex] || { name: "Unknown Entity", baseHp: 20 };state.aiHp = activeOpponent.baseHp || 20;state.grid = [null, null, null, null, null, null, null, null, null];state.claimMap = [null, null, null, null, null, null, null, null, null];state.selectedCardIdx = null;state.playerHand = [];state.lineWinner = null;var existingOverlay = document.getElementById("game-over-overlay");if (existingOverlay) existingOverlay.remove();for (var i = 0; i < 3; i++) {drawCard();}logToConsole("[SYSTEM]: Core breach engaged against " + activeOpponent.name + ".");updateUiDisplays();}function selectOpponent(idx) {state.activeAiIndex = idx;initGame();}function logToConsole(message) {var logBox = document.getElementById("combat-log");if (logBox) {logBox.innerHTML += "" + message;logBox.scrollTop = logBox.scrollHeight;}}function drawCard() {if (state.playerHand.length < 5) {var randCard = state.pool[Math.floor(Math.random() * state.pool.length)];state.playerHand.push(Object.assign({}, randCard));}}function selectHandCard(idx) {state.selectedCardIdx = state.selectedCardIdx === idx ? null : idx;updateUiDisplays();}function assignCardToGrid(gridIdx) {if (state.selectedCardIdx === null) {logToConsole("[ERROR]: Select a thermal card from your hand interface first!");return;}if (state.grid[gridIdx] !== null || state.claimMap[gridIdx] !== null) {logToConsole("[ERROR]: This geological sequence layer is occupied!");return;}var targetCard = state.playerHand[state.selectedCardIdx];if (state.playerCal < targetCard.cost) {logToConsole("[WARN]: Insufficient Calories to execute thermal loop.");return;}state.playerCal -= targetCard.cost;state.grid[gridIdx] = Object.assign({}, targetCard);state.claimMap[gridIdx] = "player";state.playerHand.splice(state.selectedCardIdx, 1);state.selectedCardIdx = null;logToConsole("[DEPLOYED]: " + targetCard.title + " assigned to " + geoLayers[gridIdx] + ".");updateUiDisplays();}function processCombustionPhase() {logToConsole("[COMBUSTION_PHASE]: Extracting values...");var baseDamageYield = 0;var scalingMultiplier = 1;state.grid.forEach(function(card) {if (!card) return;if (card.type === "Fuel") baseDamageYield += card.val;else if (card.type === "Oxidizer") { scalingMultiplier += 0.4; baseDamageYield += card.val; }else if (card.type === "Blast") baseDamageYield += card.val;});var totalFinalDamage = Math.floor(baseDamageYield * scalingMultiplier);if (totalFinalDamage > 0) {state.aiHp -= totalFinalDamage;logToConsole("[BURST SUCCESS]: Matrix erupted! Dealt " + totalFinalDamage + " damage to opponent.");} else {logToConsole("[INFO]: No pending active cards on grid to combust.");}state.grid = [null, null, null, null, null, null, null, null, null];verifyMatrixGridMatches();if (state.aiHp <= 0 || state.lineWinner) {updateUiDisplays();return;}// --- OPPONENT COUNTER ACTION TRACKER ---var emptySlots = [];state.claimMap.forEach(function(token, idx) { if (token === null) emptySlots.push(idx); });if (emptySlots.length > 0) {var choiceIdx = emptySlots[Math.floor(Math.random() * emptySlots.length)];state.claimMap[choiceIdx] = "ai";logToConsole("[OPPONENT]: AI hijacked the " + geoLayers[choiceIdx] + " layer slot.");var aiAttackPower = Math.floor(Math.random() * 3) + 2;state.playerHp -= aiAttackPower;logToConsole("[COUNTER DAMAGE]: AI hit you back for " + aiAttackPower + " damage.");}verifyMatrixGridMatches();state.playerCal = 3;while (state.playerHand.length < 3) {drawCard();}logToConsole("[SYSTEM]: Geological matrices stabilized. Hand cards dealt.");updateUiDisplays();}function checkEndgameConditions() {if (state.playerHp <= 0 || state.aiHp <= 0 || state.lineWinner !== null) {var overlay = document.createElement("div");overlay.id = "game-over-overlay";overlay.className = "game-over-screen";var headerText = "";var colorTheme = "";if (state.lineWinner === "player") {headerText = "Grid Aligned (Line Victory!)";colorTheme = "#00ff00";} else if (state.lineWinner === "ai") {headerText = "Core Intercepted (Line Defeat!)";colorTheme = "#ff3333";} else if (state.playerHp <= 0 && state.aiHp <= 0) {headerText = "Dual Meltdown (Draw)";colorTheme = "#8b949e";} else if (state.aiHp <= 0) {headerText = "Core Overwhelmed (HP Victory!)";colorTheme = "#00ff00";} else {headerText = "Thermal Freeze (HP Defeat)";colorTheme = "#ff3333";}overlay.innerHTML = <div class="game-over-title" style="color: ${colorTheme}; text-shadow: 0 0 20px ${colorTheme}; text-align:center;">${headerText}</div> <p style="color: #ffaa66; margin-bottom: 20px; text-align:center;">Pyrodynamic threshold reached parameters.</p> <button class="action-btn" onclick="initGame()">Re-engage Volcanic Grid</button>;document.getElementById("container-box").appendChild(overlay);}}// Initial initialization load linkinitGame();
