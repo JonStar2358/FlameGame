@@ -61,8 +61,8 @@
         }
         .matrix-grid { 
             display: grid; 
-            grid-template-columns: repeat(3, 120px); 
-            grid-template-rows: repeat(3, 120px); 
+            grid-template-columns: repeat(3, 130px); 
+            grid-template-rows: repeat(3, 130px); 
             gap: 14px; 
             justify-content: center; 
             margin: 20px auto; 
@@ -75,18 +75,31 @@
             flex-direction: column; 
             align-items: center; 
             justify-content: center; 
-            font-size: 0.75rem; 
+            font-size: 0.8rem; 
             text-align: center; 
             cursor: pointer; 
             transition: all 0.2s; 
             box-sizing: border-box; 
             padding: 8px; 
             overflow: hidden;
+            color: #ffaa66;
         }
         .grid-cell:hover { 
             background: rgba(255, 102, 0, 0.2); 
             border-color: #ffffff; 
             transform: scale(1.02);
+        }
+        .grid-cell.claimed-player {
+            border: 2px solid #ff3300;
+            background: rgba(255, 51, 0, 0.25);
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .grid-cell.claimed-ai {
+            border: 2px solid #33ccff;
+            background: rgba(51, 204, 255, 0.25);
+            color: #ffffff;
+            font-weight: bold;
         }
         .log-box { 
             background: #120703; 
@@ -122,10 +135,14 @@
             cursor: pointer; 
             transition: all 0.2s; 
         }
-        .card:hover { 
+        .card:hover, .card.selected { 
             transform: translateY(-8px); 
             border-color: #ffffff; 
             box-shadow: 0 0 15px #ff4500; 
+        }
+        .card.selected {
+            background: #5a1e05;
+            border-color: #ffcc00;
         }
         .card-title { 
             font-weight: bold; 
@@ -151,23 +168,19 @@
             color: #ffffff; 
             font-weight: bold;
         }
-        .game-over-screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(18, 7, 3, 0.95);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            z-index: 100;
-        }
-        .game-over-title {
-            font-size: 2.2rem;
+        .action-btn {
+            background: #ff4500;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-family: monospace;
             font-weight: bold;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            text-shadow: 0 0 15px #ff4500;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .action-btn:hover {
+            background: #ff6600;
+            box-shadow: 0 0 10px #ff6600;
         }
     </style>
 </head>
@@ -176,13 +189,13 @@
 <div class="game-layout" id="container-box">
     <div class="hud" id="hud-box">
         <div>🔥 PLAYER: <strong id="p-hp">20</strong> HP | <strong id="p-cal">3</strong>/3 Calories</div>
-        <div>🤖 <span id="ai-name">Pyrolympian-01</span>: <strong id="ai-hp">20</strong> HP</div>
+        <div>🤖 <span id="ai-name">Pyrolympian</span> (EVO <strong id="ai-evo">1</strong>): <strong id="ai-hp">20</strong> HP</div>
     </div>
 
     <div class="ai-select-panel" id="ai-panel">
-        <button class="ai-btn" onclick="selectOpponent(0)">Engage: Pyrolympian-01</button>
-        <button class="ai-btn" onclick="selectOpponent(1)">Engage: Dynamancer-02</button>
-        <button class="ai-btn" onclick="selectOpponent(2)">Engage: Flame Beautitian-03</button>
+        <button class="ai-btn" onclick="selectOpponent(0)">Engage: Pyrolympian</button>
+        <button class="ai-btn" onclick="selectOpponent(1)">Engage: Dynamancer</button>
+        <button class="ai-btn" onclick="selectOpponent(2)">Engage: Flame Beautician</button>
     </div>
 
     <div class="matrix-grid" id="matrix"></div>
@@ -190,16 +203,22 @@
     <div class="hand-container" id="hand"></div>
 
     <div class="action-container" style="display:flex; justify-content:center; gap:15px; margin-top:10px;">
-        <button class="action-btn" id="end-turn-btn" onclick="processCombustionPhase()">TRIGGER COMBUSTION PHASE</button>
+        <button class="action-btn" id="end-turn-btn" onclick="resetGameMatch(false)">RESET MATCH</button>
     </div>
 </div>
-
 <script>
-// --- INITIAL DATA ASSIGNMENT SYSTEM ---
+// --- GEOLOGICAL TILES DESIGNATION ---
+var geoLayers = [
+    "Lithosphere", "Asthenosphere", "Upper Mantle",
+    "Transition Zone", "Lower Mantle", "Abyssal Mantle",
+    "Outer Core", "Inner Core", "Sub-Core Terminal"
+];
+
+// --- OPPONENT ARRAYS WITH SIMULATED EVOLUTIONARY CAPABILITIES ---
 var opponentsRegistry = [
-    { name: "Pyrolympian-01 (The Gasifier)", baseHp: 20 },
-    { name: "Dynamancer-02 (The Chemical Ratio)", baseHp: 22 },
-    { name: "Flame Beautitian-03 (The Subsonic Front)", baseHp: 25 }
+    { name: "Pyrolympian", baseHp: 20, evolutionLevel: 1, dynamicTrait: "Gasifier Ignition" },
+    { name: "Dynamancer", baseHp: 22, evolutionLevel: 1, dynamicTrait: "Chemical Balancing" },
+    { name: "Flame Beautician", baseHp: 25, evolutionLevel: 1, dynamicTrait: "Subsonic Front Alignment" }
 ];
 
 var state = {
@@ -208,171 +227,261 @@ var state = {
     playerCal: 3,
     aiHp: 20,
     selectedCardIdx: null,
-    grid: [null, null, null, null, null, null, null, null, null],
-    claimMap: [null, null, null, null, null, null, null, null, null],
+    claimMap: [null, null, null, null, null, null, null, null, null], // Array of 'PLAYER' or 'AI' or null
     playerHand: [],
-    lineWinner: null,
     pool: [
-        { title: "Peat Brick", type: "Fuel", cost: 1, val: 2, text: "Ignition point: Low. Spreads 2 heating units to its layer." },
-        { title: "Oxygen Jet", type: "Oxidizer", cost: 1, val: 3, text: "Feeds flame streams. Multiplies Fuel cell damage by +1.4x." },
-        { title: "Char Wood", type: "Fuel", cost: 2, val: 5, text: "High density. Emits 5 massive damage units down uncontained channels." },
-        { title: "Backdraft", type: "Blast", cost: 2, val: 4, text: "Tactical flash sweep. Deals 4 structural damage across the grid." },
-        { title: "Magma Pulse", type: "Blast", cost: 3, val: 6, text: "Tectonic eruption waves. Smashes 6 global damage points straight down." }
+        { title: "Peat Brick", type: "Fuel", cost: 1, val: 2, text: "Ignition point: Low. Spreads heating units across deep crust." },
+        { title: "Oxygen Jet", type: "Oxidizer", cost: 1, val: 3, text: "Feeds burning vents. Accelerates core combustion." },
+        { title: "Char Wood", type: "Fuel", cost: 2, val: 5, text: "High carbon payload. Channels heavy heat down structural paths." },
+        { title: "Backdraft", type: "Blast", cost: 2, val: 4, text: "Pressure sweep. Deals instant flash damage across thermal veins." },
+        { title: "Magma Pulse", type: "Blast", cost: 3, val: 6, text: "Tectonic surges erupting directly from core horizons." }
     ]
 };
 
-var geoLayers = [
-    "Lithosphere", "Asthenosphere", "Upper Mantle",
-    "Transition Zone", "Lower Mantle", "D\" Layer (CMB)",
-    "Outer Core", "Inner Core", "Sub-Core Terminal"
+// --- WIN MATRIX INDEX COMBINATIONS ---
+var winLines = [, [3, 4, 5], [6, 7, 8], // Rows, [1, 4, 7], [2, 5, 8], // Columns, [2, 4, 6]             // Diagonals
 ];
 
-// --- TEXT-STRING-BASED SCANNER MACHINE ---
-function checkLineWinner(a, b, c) {
-    var ownerA = state.claimMap[a];
-    var ownerB = state.claimMap[b];
-    var ownerC = state.claimMap[c];
-    if (ownerA !== null && ownerA === ownerB && ownerB === ownerC) {
-        state.lineWinner = ownerA;
-        return true;
+// --- GAME LOG SYSTEM ---
+function writeLog(msg) {
+    var logBox = document.getElementById("combat-log");
+    logBox.innerHTML += "<br>" + msg;
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+// --- INITIALIZE INTERFACE AND DRAW MATRIX ---
+function initGameEngine() {
+    var matrixContainer = document.getElementById("matrix");
+    matrixContainer.innerHTML = "";
+    
+    for (var i = 0; i < 9; i++) {
+        var cell = document.createElement("div");
+        cell.className = "grid-cell";
+        cell.id = "cell-" + i;
+        cell.setAttribute("onclick", "executePlayerMove(" + i + ")");
+        cell.innerHTML = `<strong>[${i}]</strong><br><span style='font-size:0.65rem;'>${geoLayers[i]}</span>`;
+        matrixContainer.appendChild(cell);
     }
-    return false;
+    
+    drawPlayerHand();
+    updateHudDisplay();
+}
+function selectOpponent(idx) {
+    state.activeAiIndex = idx;
+    var ai = opponentsRegistry[idx];
+    writeLog(`[TACTICAL_ENGAGEMENT]: Switched targets to ${ai.name}. Evolution Matrix at Level: ${ai.evolutionLevel}.`);
+    resetGameMatch(true);
 }
 
-function verifyMatrixGridMatches() {
-    if (checkLineWinner(0, 1, 2)) return;
-    if (checkLineWinner(3, 4, 5)) return;
-    if (checkLineWinner(6, 7, 8)) return;
-    if (checkLineWinner(0, 3, 6)) return;
-    if (checkLineWinner(1, 4, 7)) return;
-    if (checkLineWinner(2, 5, 8)) return;
-    if (checkLineWinner(0, 4, 8)) return;
-    if (checkLineWinner(2, 4, 6)) return;
+function resetGameMatch(fullReset) {
+    var ai = opponentsRegistry[state.activeAiIndex];
+    state.claimMap = [null, null, null, null, null, null, null, null, null];
+    state.playerCal = 3;
+    state.selectedCardIdx = null;
+    
+    if (fullReset) {
+        state.playerHp = 20;
+        state.aiHp = ai.baseHp;
+    }
+    
+    initGameEngine();
+    writeLog(`[GRID_FLUSH]: Thermal vectors recalibrated for matchup against ${ai.name}.`);
 }
 
-// --- INTERACTIVE ACTIONS & GAME LOOP PIPELINE ---
-function updateUiDisplays() {
+function drawPlayerHand() {
+    var handContainer = document.getElementById("hand");
+    handContainer.innerHTML = "";
+    state.playerHand = [];
+    
+    for (var i = 0; i < 3; i++) {
+        var randCard = state.pool[Math.floor(Math.random() * state.pool.length)];
+        state.playerHand.push(randCard);
+        
+        var cardEl = document.createElement("div");
+        cardEl.className = "card";
+        cardEl.id = "card-" + i;
+        cardEl.setAttribute("onclick", "selectHandCard(" + i + ")");
+        cardEl.innerHTML = `
+            <div class="card-title">${randCard.title}</div>
+            <div class="card-desc">${randCard.text}</div>
+            <div class="card-cost">${randCard.cost} CAL</div>
+        `;
+        handContainer.appendChild(cardEl);
+    }
+}
+
+function selectHandCard(idx) {
+    for(var i=0; i<3; i++) {
+        var el = document.getElementById("card-"+i);
+        if(el) el.classList.remove("selected");
+    }
+    state.selectedCardIdx = idx;
+    document.getElementById("card-"+idx).classList.add("selected");
+    writeLog(`[CARD_LOADED]: Primed ${state.playerHand[idx].title}. Choose target layer on grid.`);
+}
+
+function updateHudDisplay() {
+    var ai = opponentsRegistry[state.activeAiIndex];
     document.getElementById("p-hp").innerText = state.playerHp;
     document.getElementById("p-cal").innerText = state.playerCal;
-    
-    var currentOpponent = opponentsRegistry[state.activeAiIndex] || { name: "Unknown Entity", baseHp: 20 };
-    document.getElementById("ai-name").innerText = currentOpponent.name;
+    document.getElementById("ai-name").innerText = ai.name;
+    document.getElementById("ai-evo").innerText = ai.evolutionLevel;
     document.getElementById("ai-hp").innerText = state.aiHp;
-
-    var matrixBox = document.getElementById("matrix");
-    matrixBox.innerHTML = "";
     
-    state.grid.forEach(function(cell, idx) {
-        var cellElement = document.createElement("div");
-        cellElement.className = "grid-cell";
-        cellElement.onclick = function() { assignCardToGrid(idx); };
-        
-        if (cell) {
-            cellElement.style.borderStyle = "solid";
-            cellElement.style.borderColor = "#ffaa00";
-            cellElement.innerHTML = "<strong style='color:#ffffff;'>" + cell.title + "</strong><br><span style='color:#ffaa00; font-size:0.6rem;'>[READY]</span>";
-        } 
-        else if (state.claimMap[idx]) {
-            cellElement.style.borderStyle = "solid";
-            if (state.claimMap[idx] === "player") {
-                cellElement.style.borderColor = "#58a6ff";
-                cellElement.innerHTML = "<span style='color:#58a6ff; font-weight:bold;'>🔥 ME</span><br><span style='color:#8b949e; font-size:0.55rem;'>" + geoLayers[idx] + "</span>";
-            } else {
-                cellElement.style.borderColor = "#ff3333";
-                function updateUiDisplays() {
-    document.getElementById('p-hp').innerText = state.playerHp;
-    document.getElementById('p-cal').innerText = state.playerCal;
-    
-    var currentOpponent = opponentsRegistry[state.activeAiIndex] || { name: 'Unknown Entity', baseHp: 20 };
-    document.getElementById('ai-name').innerText = currentOpponent.name;
-    document.getElementById('ai-hp').innerText = state.aiHp;
-
-    var matrixBox = document.getElementById('matrix');
-    matrixBox.innerHTML = '';
-    
-    state.grid.forEach(function(cell, idx) {
-        var cellElement = document.createElement('div');
-        cellElement.className = 'grid-cell';
-        cellElement.onclick = function() { assignCardToGrid(idx); };
-        
-        if (cell) {
-            cellElement.style.borderStyle = 'solid';
-            cellElement.style.borderColor = '#ffaa00';
-            
-            var cellBold = document.createElement('strong');
-            cellBold.style.color = '#ffffff';
-            cellBold.textContent = cell.title;
-            cellElement.appendChild(cellBold);
-            
-            var cellBreak = document.createElement('br');
-            cellElement.appendChild(cellBreak);
-            
-            var cellSpan = document.createElement('span');
-            cellSpan.style.color = '#ffaa00';
-            cellSpan.style.fontSize = '0.6rem';
-            cellSpan.textContent = '[READY]';
-            cellElement.appendChild(cellSpan);
-        } 
-        else if (state.claimMap[idx]) {
-            cellElement.style.borderStyle = 'solid';
-            
-            var claimSpan = document.createElement('span');
-            claimSpan.style.fontWeight = 'bold';
-            
-            if (state.claimMap[idx] === 'player') {
-                cellElement.style.borderColor = '#58a6ff';
-                claimSpan.style.color = '#58a6ff';
-                claimSpan.textContent = '🔥 ME';
-            } else {
-                cellElement.style.borderColor = '#ff3333';
-                claimSpan.style.color = '#ff3333';
-                claimSpan.textContent = '🤖 AI';
-            }
-            cellElement.appendChild(claimSpan);
-            
-            var claimBreak = document.createElement('br');
-            cellElement.appendChild(claimBreak);
-            
-            var layerNameSpan = document.createElement('span');
-            layerNameSpan.style.color = '#8b949e';
-            layerNameSpan.style.fontSize = '0.55rem';
-            layerNameSpan.textContent = geoLayers[idx];
-            cellElement.appendChild(layerNameSpan);
-        } 
-        else {
-            var vacantSpan = document.createElement('span');
-            vacantSpan.style.color = '#3d1403';
-            vacantSpan.textContent = geoLayers[idx];
-            cellElement.appendChild(vacantSpan);
+    for (var i = 0; i < 9; i++) {
+        var cell = document.getElementById("cell-" + i);
+        if (state.claimMap[i] === 'PLAYER') {
+            cell.className = "grid-cell claimed-player";
+        } else if (state.claimMap[i] === 'AI') {
+            cell.className = "grid-cell claimed-ai";
+        } else {
+            cell.className = "grid-cell";
         }
-        matrixBox.appendChild(cellElement);
-    });
-
-    var handBox = document.getElementById('hand');
-    handBox.innerHTML = '';
-    
-    state.playerHand.forEach(function(card, idx) {
-        var cardElement = document.createElement('div');
-        cardElement.className = 'card ' + (state.selectedCardIdx === idx ? 'selected' : '');
-        cardElement.onclick = function() { selectHandCard(idx); };
-        
-        var titleDiv = document.createElement('div');
-        titleDiv.className = 'card-title';
-        titleDiv.textContent = card.title;
-        cardElement.appendChild(titleDiv);
-        
-        var descDiv = document.createElement('div');
-        descDiv.className = 'card-desc';
-        descDiv.textContent = card.text;
-        cardElement.appendChild(descDiv);
-        
-        var costDiv = document.createElement('div');
-        costDiv.className = 'card-cost';
-        costDiv.textContent = card.cost + ' CAL';
-        cardElement.appendChild(costDiv);
-        
-        handBox.appendChild(cardElement);
-    });
-
-    checkEndgameConditions();
+    }
 }
+
+function evaluateVictoryCondition() {
+    for (var i = 0; i < winLines.length; i++) {
+        var line = winLines[i];
+        if (state.claimMap[line[0]] && state.claimMap[line[0]] === state.claimMap[line[1]] && state.claimMap[line[1]] === state.claimMap[line[2]]) {
+            return state.claimMap[line[0]];
+        }
+    }
+    if (!state.claimMap.includes(null)) return 'TIE';
+    return null;
+}
+
+function executePlayerMove(index) {
+    if (state.selectedCardIdx === null) {
+        writeLog("[ACTION_DENIED]: Select an activation card from your primary thermal reservoir first.");
+        return;
+    }
+    if (state.claimMap[index] !== null) {
+        writeLog("[VEIN_OCCUPIED]: That geo-layer thermal line has already stabilized. Choose a vacant sector.");
+        return;
+    }
+    
+    var card = state.playerHand[state.selectedCardIdx];
+    if (state.playerCal < card.cost) {
+        writeLog("[ENERGY_RESERVE_LOW]: Inadequate calorie metrics remaining to trigger ignition profile.");
+        return;
+    }
+
+    state.playerCal -= card.cost;
+    state.claimMap[index] = 'PLAYER';
+    writeLog(`[PLAYER_ACTION]: Detonated ${card.title} in the **${geoLayers[index]}**. Channeling energy.`);
+    
+    state.selectedCardIdx = null;
+    drawPlayerHand();
+    updateHudDisplay();
+    
+    var checkWin = evaluateVictoryCondition();
+    if (checkWin) {
+        processMatchOutcome(checkWin);
+        return;
+    }
+
+    setTimeout(executeUnlockedAiLogic, 600);
+}
+function processMatchOutcome(winner) {
+    var ai = opponentsRegistry[state.activeAiIndex];
+    if (winner === 'PLAYER') {
+        state.aiHp -= 10;
+        writeLog(`💥 [CRITICAL_IGNITION]: You claimed a column/row! ${ai.name} takes 10 thermal damage.`);
+        if(state.aiHp <= 0) {
+            if(ai.evolutionLevel < 3) {
+                ai.evolutionLevel++;
+                writeLog(`🚨 [EVOLUTION_UNLOCKED]: ${ai.name} adapted! Permanently upgraded to Evolutionary Tier ${ai.evolutionLevel}.`);
+            } else {
+                writeLog(`🏆 [APEX_TERMINATED]: You have completely defeated the ultimate form of ${ai.name}!`);
+            }
+            state.aiHp = ai.baseHp + (ai.evolutionLevel * 5);
+        }
+    } else if (winner === 'AI') {
+        state.playerHp -= 10;
+        writeLog(`💀 [THERMAL_COLLAPSE]: ${ai.name} triggered a systemic compression chain! You took 10 damage.`);
+    } else if (winner === 'TIE') {
+        writeLog(`⚖️ [THERMAL_EQUILIBRIUM]: The grid reaches a stable heat capacity state. Grid reset executed.`);
+    }
+    
+    if(state.playerHp <= 0) {
+        writeLog("💥 [GAME_OVER]: Core system failure. You were consumed by the subterranean magma front.");
+        state.playerHp = 20;
+    }
+    
+    setTimeout(() => { resetGameMatch(false); }, 2000);
+}
+
+function executeUnlockedAiLogic() {
+    var ai = opponentsRegistry[state.activeAiIndex];
+    var evoLevel = ai.evolutionLevel;
+    var targetCell = null;
+
+    writeLog(`[AI_THINKING]: ${ai.name} evaluating structural vectors via Tier-${evoLevel} Logic...`);
+
+    if (evoLevel >= 2) {
+        for (var i = 0; i < winLines.length; i++) {
+            var line = winLines[i];
+            var countAI = line.filter(idx => state.claimMap[idx] === 'AI').length;
+            var countEmpty = line.filter(idx => state.claimMap[idx] === null).length;
+            if (countAI === 2 && countEmpty === 1) {
+                targetCell = line.find(idx => state.claimMap[idx] === null);
+                writeLog(`🎯 [AI_STRATEGY]: ${ai.name} calculated instant victory pathway.`);
+                break;
+            }
+        }
+
+        if (targetCell === null) {
+            for (var i = 0; i < winLines.length; i++) {
+                var line = winLines[i];
+                var countPlayer = line.filter(idx => state.claimMap[idx] === 'PLAYER').length;
+                var countEmpty = line.filter(idx => state.claimMap[idx] === null).length;
+                if (countPlayer === 2 && countEmpty === 1) {
+                    targetCell = line.find(idx => state.claimMap[idx] === null);
+                    writeLog(`🛡️ [AI_STRATEGY]: ${ai.name} anticipated human grid lock. Deploying suppressive countermeasures.`);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (evoLevel === 3 && targetCell === null) {
+        var strategicNodes =; 
+        for(var n=0; n < strategicNodes.length; n++) {
+            if(state.claimMap[strategicNodes[n]] === null) {
+                targetCell = strategicNodes[n];
+                writeLog(`🌋 [AI_APEX_LOGIC]: ${ai.name} focuses output down geothermal structural points: **${geoLayers[targetCell]}**.`);
+                break;
+            }
+        }
+    }
+
+    if (targetCell === null) {
+        var emptyIndices = [];
+        for (var i = 0; i < 9; i++) {
+            if (state.claimMap[i] === null) emptyIndices.push(i);
+        }
+        if (emptyIndices.length > 0) {
+            targetCell = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        }
+    }
+
+    if (targetCell !== null) {
+        state.claimMap[targetCell] = 'AI';
+        writeLog(`🤖 [AI_ACTION]: ${ai.name} stabilizes thermal influence over the **${geoLayers[targetCell]}**.`);
+        state.playerCal = 3; 
+        updateHudDisplay();
+        
+        var checkWin = evaluateVictoryCondition();
+        if (checkWin) {
+            processMatchOutcome(checkWin);
+        }
+    }
+}
+
+window.onload = function() {
+    initGameEngine();
+};
+</script>
+</body>
+</html>
