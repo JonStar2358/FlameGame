@@ -115,6 +115,20 @@
             font-weight: bold;
             box-shadow: inset 0 0 10px rgba(51, 204, 255, 0.3);
         }
+        .cell-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .cell-emoji {
+            font-size: 2.5rem;
+            min-height: 2.5rem;
+        }
+        .cell-label {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
         .log-box { 
             background: #120703; 
             border: 1px solid #3d1403; 
@@ -365,6 +379,7 @@ var state = {
     compHp: 20,
     selectedCardIdx: null,
     claimMap: [null, null, null, null, null, null, null, null, null],
+    moveMap: [null, null, null, null, null, null, null, null, null],
     playerHand: [],
     isProcessing: false
 };
@@ -396,7 +411,12 @@ function initGameEngine() {
         cell.className = "grid-cell";
         cell.id = "cell-" + i;
         cell.setAttribute("onclick", "executePlayerMove(" + i + ")");
-        cell.innerHTML = `<strong>[${i}]</strong><br><span style='font-size:0.65rem;'>${geoLayers[i]}</span>`;
+        cell.innerHTML = `
+            <div class="cell-content">
+                <div class="cell-emoji" id="emoji-${i}"></div>
+                <div class="cell-label">[${i}] ${geoLayers[i]}</div>
+            </div>
+        `;
         matrixContainer.appendChild(cell);
     }
     
@@ -414,6 +434,7 @@ function selectOpponent(idx) {
 function resetGameMatch(fullReset) {
     var comp = opponentsRegistry[state.activeCompIndex];
     state.claimMap = [null, null, null, null, null, null, null, null, null];
+    state.moveMap = [null, null, null, null, null, null, null, null, null];
     state.selectedCardIdx = null;
     state.isProcessing = false;
     
@@ -469,12 +490,17 @@ function updateHudDisplay() {
     
     for (var i = 0; i < 9; i++) {
         var cell = document.getElementById("cell-" + i);
+        var emojiEl = document.getElementById("emoji-" + i);
+        
         if (state.claimMap[i] === 'PLAYER') {
             cell.className = "grid-cell claimed-player";
+            emojiEl.innerText = state.moveMap[i] ? state.moveMap[i].emoji : "";
         } else if (state.claimMap[i] === 'COMP') {
             cell.className = "grid-cell claimed-comp";
+            emojiEl.innerText = state.moveMap[i] ? state.moveMap[i].emoji : "";
         } else {
             cell.className = "grid-cell";
+            emojiEl.innerText = "";
         }
     }
 }
@@ -509,6 +535,7 @@ function executePlayerMove(index) {
     var card = state.playerHand[state.selectedCardIdx];
 
     state.claimMap[index] = 'PLAYER';
+    state.moveMap[index] = card;
     writeLog(`[PLAYER]: Unleashed ${card.title} upon the **${geoLayers[index]}**! ${card.emoji}`);
     
     state.selectedCardIdx = null;
@@ -578,10 +605,12 @@ function executeComputerScriptTurn() {
         }
     }
 
-    // Commit choice to the board
+    // Commit choice to the board with random move
     if (choice !== null) {
+        var compMove = moveLibrary[Math.floor(Math.random() * moveLibrary.length)];
         state.claimMap[choice] = 'COMP';
-        writeLog(`🤖 [${comp.name.toUpperCase()}]: Seized dominion over the **${geoLayers[choice]}**.`);
+        state.moveMap[choice] = compMove;
+        writeLog(`🤖 [${comp.name.toUpperCase()}]: Unleashed ${compMove.title} over the **${geoLayers[choice]}**! ${compMove.emoji}`);
         updateHudDisplay();
         
         var checkWin = evaluateVictoryCondition();
