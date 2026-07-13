@@ -65,10 +65,11 @@
             gap: 14px; 
             justify-content: center; 
             margin: 20px auto; 
+            position: relative;
         }
         .grid-cell { 
-            border: 1px dashed #ff6600; 
-            background: #1a0a03; 
+            border: 2px solid #ff6600; 
+            background: linear-gradient(135deg, #1a0a03 0%, #2d1105 100%);
             border-radius: 6px; 
             display: flex; 
             flex-direction: column; 
@@ -82,23 +83,37 @@
             padding: 8px; 
             overflow: hidden;
             color: #ffaa66;
+            position: relative;
+        }
+        .grid-cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 102, 0, 0.1), transparent);
+            pointer-events: none;
         }
         .grid-cell:hover { 
-            background: rgba(255, 102, 0, 0.2); 
+            background: linear-gradient(135deg, #2d1105 0%, #3d1105 100%);
             border-color: #ffffff; 
-            transform: scale(1.02);
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(255, 102, 0, 0.4);
         }
         .grid-cell.claimed-player {
             border: 2px solid #ff3300;
-            background: rgba(255, 51, 0, 0.25);
+            background: linear-gradient(135deg, rgba(255, 51, 0, 0.3) 0%, rgba(255, 102, 0, 0.2) 100%);
             color: #ffffff;
             font-weight: bold;
+            box-shadow: inset 0 0 10px rgba(255, 51, 0, 0.3);
         }
         .grid-cell.claimed-comp {
             border: 2px solid #33ccff;
-            background: rgba(51, 204, 255, 0.25);
+            background: linear-gradient(135deg, rgba(51, 204, 255, 0.3) 0%, rgba(0, 150, 200, 0.2) 100%);
             color: #ffffff;
             font-weight: bold;
+            box-shadow: inset 0 0 10px rgba(51, 204, 255, 0.3);
         }
         .log-box { 
             background: #120703; 
@@ -123,33 +138,48 @@
         .card { 
             width: 140px; 
             height: 190px; 
-            border: 1px solid #ff6600; 
+            border: 2px solid #ff6600; 
             border-radius: 6px; 
-            background: #2d1105; 
+            background: linear-gradient(135deg, #2d1105 0%, #3d1403 100%);
             display: flex; 
             flex-direction: column; 
             justify-content: space-between; 
             padding: 12px; 
             box-sizing: border-box; 
             cursor: pointer; 
-            transition: all 0.2s; 
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 69, 0, 0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
         .card:hover, .card.selected { 
-            transform: translateY(-8px); 
+            transform: translateY(-12px); 
             border-color: #ffffff; 
-            box-shadow: 0 0 15px #ff4500; 
+            box-shadow: 0 0 20px #ff4500; 
         }
         .card.selected {
-            background: #5a1e05;
+            background: linear-gradient(135deg, #5a1e05 0%, #7a2e05 100%);
             border-color: #ffcc00;
+            box-shadow: 0 0 30px #ffcc00;
         }
         .card-title { 
             font-weight: bold; 
-            font-size: 0.8rem; 
-            border-bottom: 1px solid #ff4500; 
+            font-size: 0.85rem; 
+            border-bottom: 2px solid #ff4500; 
             padding-bottom: 6px; 
             color: #ffcc99; 
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .card-desc { 
             font-size: 0.65rem; 
@@ -157,15 +187,11 @@
             flex-grow: 1; 
             margin-top: 8px; 
             line-height: 1.3; 
+            font-style: italic;
         }
-        .card-cost { 
-            align-self: flex-end; 
-            font-size: 0.75rem; 
-            background: rgba(255, 69, 0, 0.4); 
-            padding: 2px 8px; 
-            border-radius: 4px; 
-            color: #ffffff; 
-            font-weight: bold;
+        .card-emoji {
+            font-size: 2rem;
+            margin: 4px 0;
         }
         .action-btn {
             background: #ff4500;
@@ -176,10 +202,84 @@
             font-weight: bold;
             border-radius: 4px;
             cursor: pointer;
+            transition: all 0.2s;
         }
         .action-btn:hover {
             background: #ff6600;
             box-shadow: 0 0 10px #ff6600;
+        }
+        
+        /* WIN DECLARATION MODAL */
+        .win-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .win-overlay.active {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .win-declaration {
+            text-align: center;
+            padding: 40px;
+            border: 3px solid #ffcc00;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #220f06 0%, #3d1403 100%);
+            box-shadow: 0 0 50px #ffcc00, 0 0 100px #ff4500;
+            animation: pulse 0.6s ease-in-out;
+            max-width: 500px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.9); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .win-declaration h1 {
+            font-size: 3rem;
+            color: #ffcc00;
+            margin: 0;
+            text-shadow: 0 0 20px #ff4500;
+            letter-spacing: 3px;
+        }
+        
+        .win-declaration .emoji {
+            font-size: 4rem;
+            margin: 20px 0;
+            animation: bounce 0.6s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .win-declaration p {
+            font-size: 1.2rem;
+            color: #ffaa66;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        
+        .win-declaration .subtext {
+            font-size: 0.9rem;
+            color: #ff6600;
+            font-style: italic;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -187,7 +287,7 @@
 
 <div class="game-layout">
     <div class="hud">
-        <div>🔥 PLAYER: <strong id="p-hp">20</strong> HP | <strong id="p-cal">3</strong>/3 Calories</div>
+        <div>🔥 PLAYER: <strong id="p-hp">20</strong> HP</div>
         <div>🤖 <span id="comp-name">Pyrolympian</span> (EVO <strong id="comp-evo">1</strong>): <strong id="comp-hp">20</strong> HP</div>
     </div>
 
@@ -205,12 +305,51 @@
         <button class="action-btn" onclick="resetGameMatch(true)">RESET MATCH</button>
     </div>
 </div>
+
+<div class="win-overlay" id="win-overlay">
+    <div class="win-declaration" id="win-declaration">
+        <div class="emoji" id="win-emoji">🔥</div>
+        <h1 id="win-title">VICTORY!</h1>
+        <p id="win-message">Thermal Dominance Achieved</p>
+        <div class="subtext">Realigning the geothermal matrix...</div>
+    </div>
+</div>
+
 <script>
 // --- GEOLOGICAL TILES DESIGNATION ---
 var geoLayers = [
     "Lithosphere", "Asthenosphere", "Upper Mantle",
     "Transition Zone", "Lower Mantle", "Abyssal Mantle",
     "Outer Core", "Inner Core", "Sub-Core Terminal"
+];
+
+// --- ARTISTIC MOVE NAMES AND EMOJIS ---
+var moveLibrary = [
+    { 
+        title: "Infernal Kiss", 
+        emoji: "💋",
+        text: "A seductive dance of flames ignites the deep." 
+    },
+    { 
+        title: "Magma's Whisper", 
+        emoji: "🌋",
+        text: "The earth speaks in molten tongues." 
+    },
+    { 
+        title: "Pyroclastic Ballet", 
+        emoji: "🔥",
+        text: "A graceful eruption of ash and fire." 
+    },
+    { 
+        title: "Thermal Waltz", 
+        emoji: "💃",
+        text: "A mesmerizing spiral of heat and pressure." 
+    },
+    { 
+        title: "Inferno's Dream", 
+        emoji: "✨",
+        text: "Reality bends where fire touches stone." 
+    }
 ];
 
 // --- COMPUTER OPPONENT ARRAY WITH BEHAVIOR MODIFIERS ---
@@ -223,18 +362,11 @@ var opponentsRegistry = [
 var state = {
     activeCompIndex: 0,
     playerHp: 20,
-    playerCal: 3,
     compHp: 20,
     selectedCardIdx: null,
     claimMap: [null, null, null, null, null, null, null, null, null],
     playerHand: [],
-    pool: [
-        { title: "Peat Brick", cost: 1, text: "Low ignition point. Claims a tectonic vein to channel thermal energy." },
-        { title: "Oxygen Jet", cost: 1, text: "Feeds chemical ratios. Stabilizes pressure lines across the layers." },
-        { title: "Char Wood", cost: 2, text: "High density carbon. Spreads deep heat through the lower mantle channels." },
-        { title: "Backdraft", cost: 2, text: "Pressure compression. Captures an open point on the volcanic grid." },
-        { title: "Magma Pulse", cost: 3, text: "Erupts directly out of the deep hot zones to seal an energy boundary." }
-    ]
+    isProcessing: false
 };
 
 // --- STATIC WIN LINES MATRIX INDEXES ---
@@ -282,8 +414,8 @@ function selectOpponent(idx) {
 function resetGameMatch(fullReset) {
     var comp = opponentsRegistry[state.activeCompIndex];
     state.claimMap = [null, null, null, null, null, null, null, null, null];
-    state.playerCal = 3;
     state.selectedCardIdx = null;
+    state.isProcessing = false;
     
     if (fullReset) {
         state.playerHp = 20;
@@ -300,7 +432,7 @@ function drawPlayerHand() {
     state.playerHand = [];
     
     for (var i = 0; i < 3; i++) {
-        var randCard = state.pool[Math.floor(Math.random() * state.pool.length)];
+        var randCard = moveLibrary[Math.floor(Math.random() * moveLibrary.length)];
         state.playerHand.push(randCard);
         
         var cardEl = document.createElement("div");
@@ -308,28 +440,29 @@ function drawPlayerHand() {
         cardEl.id = "card-" + i;
         cardEl.setAttribute("onclick", "selectHandCard(" + i + ")");
         cardEl.innerHTML = `
+            <div class="card-emoji">${randCard.emoji}</div>
             <div class="card-title">${randCard.title}</div>
             <div class="card-desc">${randCard.text}</div>
-            <div class="card-cost">${randCard.cost} CAL</div>
         `;
         handContainer.appendChild(cardEl);
     }
 }
 
 function selectHandCard(idx) {
+    if (state.isProcessing) return;
+    
     for(var i=0; i<3; i++) {
         var el = document.getElementById("card-"+i);
         if(el) el.classList.remove("selected");
     }
     state.selectedCardIdx = idx;
     document.getElementById("card-"+idx).classList.add("selected");
-    writeLog(`[CARD_LOADED]: Ready to deploy ${state.playerHand[idx].title}. Pick a grid target.`);
+    writeLog(`[MOVE_LOADED]: Preparing ${state.playerHand[idx].title}. Strike a tectonic layer.`);
 }
 
 function updateHudDisplay() {
     var comp = opponentsRegistry[state.activeCompIndex];
     document.getElementById("p-hp").innerText = state.playerHp;
-    document.getElementById("p-cal").innerText = state.playerCal;
     document.getElementById("comp-name").innerText = comp.name;
     document.getElementById("comp-evo").innerText = comp.evolutionLevel;
     document.getElementById("comp-hp").innerText = state.compHp;
@@ -358,6 +491,11 @@ function evaluateVictoryCondition() {
 }
 
 function executePlayerMove(index) {
+    if (state.isProcessing) {
+        writeLog("[PROCESSING]: Wait for the thermal cascade to complete.");
+        return;
+    }
+    
     if (state.selectedCardIdx === null) {
         writeLog("[DENIED]: Select a thermal action card first.");
         return;
@@ -367,15 +505,11 @@ function executePlayerMove(index) {
         return;
     }
     
+    state.isProcessing = true;
     var card = state.playerHand[state.selectedCardIdx];
-    if (state.playerCal < card.cost) {
-        writeLog("[RESERVES_LOW]: Insufficient calories to trigger ignition.");
-        return;
-    }
 
-    state.playerCal -= card.cost;
     state.claimMap[index] = 'PLAYER';
-    writeLog(`[PLAYER]: Fired ${card.title} at the **${geoLayers[index]}**.`);
+    writeLog(`[PLAYER]: Unleashed ${card.title} upon the **${geoLayers[index]}**! ${card.emoji}`);
     
     state.selectedCardIdx = null;
     drawPlayerHand();
@@ -388,7 +522,7 @@ function executePlayerMove(index) {
     }
     
     // Execute computer turn after player move
-    setTimeout(() => { executeComputerScriptTurn(); }, 800);
+    setTimeout(() => { executeComputerScriptTurn(); }, 1000);
 }
 
 function executeComputerScriptTurn() {
@@ -422,7 +556,7 @@ function executeComputerScriptTurn() {
         }
     }
 
-    // TIER 3: Lock down structural focal layers like Lower Mantle [4] or Abyssal Mantle [5]
+    // TIER 3: Lock down structural focal layers
     if (tier === 3 && choice === null) {
         var highValueNodes = [4, 5];
         for (var j = 0; j < highValueNodes.length; j++) {
@@ -433,7 +567,7 @@ function executeComputerScriptTurn() {
         }
     }
 
-    // FALLBACK / TIER 1: Select a random remaining node instantly
+    // FALLBACK / TIER 1: Select a random remaining node
     if (choice === null) {
         var opens = [];
         for (var i = 0; i < 9; i++) {
@@ -444,47 +578,71 @@ function executeComputerScriptTurn() {
         }
     }
 
-    // Commit choice instantly to the board without delays or hanging loops
+    // Commit choice to the board
     if (choice !== null) {
         state.claimMap[choice] = 'COMP';
-        writeLog(`🤖 [COMP]: ${comp.name} locked thermal control over the **${geoLayers[choice]}**.`);
-        state.playerCal = 3; // Reset player calories for next action loop
+        writeLog(`🤖 [${comp.name.toUpperCase()}]: Seized dominion over the **${geoLayers[choice]}**.`);
         updateHudDisplay();
         
         var checkWin = evaluateVictoryCondition();
         if (checkWin) {
             processMatchOutcome(checkWin);
+        } else {
+            state.isProcessing = false;
         }
     }
 }
 
+function showWinDeclaration(emoji, title, message) {
+    var overlay = document.getElementById("win-overlay");
+    document.getElementById("win-emoji").innerText = emoji;
+    document.getElementById("win-title").innerText = title;
+    document.getElementById("win-message").innerText = message;
+    overlay.classList.add("active");
+}
+
+function hideWinDeclaration() {
+    var overlay = document.getElementById("win-overlay");
+    overlay.classList.remove("active");
+}
+
 function processMatchOutcome(winner) {
     var comp = opponentsRegistry[state.activeCompIndex];
+    
     if (winner === 'PLAYER') {
         state.compHp -= 10;
-        writeLog(`💥 [BURST]: You matched a row! ${comp.name} takes 10 damage.`);
+        writeLog(`💥 [BURST]: You aligned the thermal matrix! ${comp.name} takes 10 damage.`);
+        
+        showWinDeclaration("🏆", "THERMAL NEXUS!", `${comp.name} overwhelmed!`);
+        
         if(state.compHp <= 0) {
             if(comp.evolutionLevel < 3) {
                 comp.evolutionLevel++;
                 writeLog(`🚨 [EVOLUTION]: ${comp.name} structural analysis complete. Upgrading to Tier ${comp.evolutionLevel}!`);
+                showWinDeclaration("⚡", "EVOLUTION!", `${comp.name} grows stronger!`);
             } else {
                 writeLog(`🏆 [VICTORY]: You completely neutralized the apex tier of ${comp.name}!`);
+                showWinDeclaration("👑", "ABSOLUTE VICTORY!", `${comp.name} vanquished!`);
             }
             state.compHp = comp.baseHp + (comp.evolutionLevel * 5);
         }
     } else if (winner === 'COMP') {
         state.playerHp -= 10;
-        writeLog(`💀 [COLLAPSE]: ${comp.name} synced a grid vector. You take 10 damage.`);
+        writeLog(`💀 [COLLAPSE]: ${comp.name} aligned the fatal vector. You take 10 damage.`);
+        showWinDeclaration("🔥", "THERMAL COLLAPSE!", `${comp.name} dominates!`);
     } else if (winner === 'TIE') {
         writeLog("⚖️ [EQUILIBRIUM]: Thermal feedback balanced out. Grid resetting.");
+        showWinDeclaration("⚖️", "EQUILIBRIUM", "Forces balanced...");
     }
     
     if(state.playerHp <= 0) {
         writeLog("💥 [GAME_OVER]: Subterranean core overload. System restarting.");
         state.playerHp = 20;
+        showWinDeclaration("💥", "SYSTEM FAILURE", "Rebooting...");
     }
     
-    setTimeout(() => { resetGameMatch(false); }, 2000);
+    setTimeout(() => { hideWinDeclaration(); }, 3000);
+    setTimeout(() => { resetGameMatch(false); }, 3200);
 }
 
 window.onload = function() {
