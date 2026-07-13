@@ -271,6 +271,7 @@ function initGameEngine() {
     drawPlayerHand();
     updateHudDisplay();
 }
+
 function selectOpponent(idx) {
     state.activeCompIndex = idx;
     var comp = opponentsRegistry[idx];
@@ -385,6 +386,10 @@ function executePlayerMove(index) {
         processMatchOutcome(checkWin);
         return;
     }
+    
+    // Execute computer turn after player move
+    setTimeout(() => { executeComputerScriptTurn(); }, 800);
+}
 
 function executeComputerScriptTurn() {
     var comp = opponentsRegistry[state.activeCompIndex];
@@ -419,7 +424,7 @@ function executeComputerScriptTurn() {
 
     // TIER 3: Lock down structural focal layers like Lower Mantle [4] or Abyssal Mantle [5]
     if (tier === 3 && choice === null) {
-        var highValueNodes = [4, 5]; 
+        var highValueNodes = [4, 5];
         for (var j = 0; j < highValueNodes.length; j++) {
             if (state.claimMap[highValueNodes[j]] === null) {
                 choice = highValueNodes[j];
@@ -480,67 +485,6 @@ function processMatchOutcome(winner) {
     }
     
     setTimeout(() => { resetGameMatch(false); }, 2000);
-}
-
-function executeComputerScriptTurn() {
-    var comp = opponentsRegistry[state.activeCompIndex];
-    var tier = comp.evolutionLevel;
-    var choice = null;
-
-    if (tier >= 2) {
-        for (var i = 0; i < winLines.length; i++) {
-            var line = winLines[i];
-            var compOwned = line.filter(idx => state.claimMap[idx] === 'COMP').length;
-            var emptyCells = line.filter(idx => state.claimMap[idx] === null).length;
-            if (compOwned === 2 && emptyCells === 1) {
-                choice = line.find(idx => state.claimMap[idx] === null);
-                break;
-            }
-        }
-        if (choice === null) {
-            for (var i = 0; i < winLines.length; i++) {
-                var line = winLines[i];
-                var playOwned = line.filter(idx => state.claimMap[idx] === 'PLAYER').length;
-                var emptyCells = line.filter(idx => state.claimMap[idx] === null).length;
-                if (playOwned === 2 && emptyCells === 1) {
-                    choice = line.find(idx => state.claimMap[idx] === null);
-                    break;
-                }
-            }
-        }
-    }
-
-    if (tier === 3 && choice === null) {
-        var highValueNodes =
-        for(var j=0; j < highValueNodes.length; j++) {
-            if(state.claimMap[highValueNodes[j]] === null) {
-                choice = highValueNodes[j];
-                break;
-            }
-        }
-    }
-
-    if (choice === null) {
-        var opens = [];
-        for (var i = 0; i < 9; i++) {
-            if (state.claimMap[i] === null) opens.push(i);
-        }
-        if (opens.length > 0) {
-            choice = opens[Math.floor(Math.random() * opens.length)];
-        }
-    }
-
-    if (choice !== null) {
-        state.claimMap[choice] = 'COMP';
-        writeLog(`🤖 [COMP]: ${comp.name} locked thermal control over the **${geoLayers[choice]}**.`);
-        state.playerCal = 3; 
-        updateHudDisplay();
-        
-        var checkWin = evaluateVictoryCondition();
-        if (checkWin) {
-            processMatchOutcome(checkWin);
-        }
-    }
 }
 
 window.onload = function() {
