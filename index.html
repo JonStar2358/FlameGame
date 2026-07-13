@@ -16,7 +16,6 @@
             margin: 0; 
             padding: 15px; 
             box-sizing: border-box;
-            position: relative;
         }
         .game-layout { 
             max-width: 850px; 
@@ -95,7 +94,7 @@
             color: #ffffff;
             font-weight: bold;
         }
-        .grid-cell.claimed-ai {
+        .grid-cell.claimed-comp {
             border: 2px solid #33ccff;
             background: rgba(51, 204, 255, 0.25);
             color: #ffffff;
@@ -186,24 +185,24 @@
 </head>
 <body>
 
-<div class="game-layout" id="container-box">
-    <div class="hud" id="hud-box">
+<div class="game-layout">
+    <div class="hud">
         <div>🔥 PLAYER: <strong id="p-hp">20</strong> HP | <strong id="p-cal">3</strong>/3 Calories</div>
-        <div>🤖 <span id="ai-name">Pyrolympian</span> (EVO <strong id="ai-evo">1</strong>): <strong id="ai-hp">20</strong> HP</div>
+        <div>🤖 <span id="comp-name">Pyrolympian</span> (EVO <strong id="comp-evo">1</strong>): <strong id="comp-hp">20</strong> HP</div>
     </div>
 
-    <div class="ai-select-panel" id="ai-panel">
+    <div class="ai-select-panel">
         <button class="ai-btn" onclick="selectOpponent(0)">Engage: Pyrolympian</button>
         <button class="ai-btn" onclick="selectOpponent(1)">Engage: Dynamancer</button>
         <button class="ai-btn" onclick="selectOpponent(2)">Engage: Flame Beautician</button>
     </div>
 
     <div class="matrix-grid" id="matrix"></div>
-    <div class="log-box" id="combat-log">[SYSTEM_INITIALIZATION]: Volcanic Grid synchronized. Ready to initialize.</div>
+    <div class="log-box" id="combat-log">[SYSTEM_INITIALIZATION]: Geothermal Grid active. Scripted Computer Opponents ready.</div>
     <div class="hand-container" id="hand"></div>
 
-    <div class="action-container" style="display:flex; justify-content:center; gap:15px; margin-top:10px;">
-        <button class="action-btn" id="end-turn-btn" onclick="resetGameMatch(false)">RESET MATCH</button>
+    <div style="display:flex; justify-content:center; margin-top:10px;">
+        <button class="action-btn" onclick="resetGameMatch(true)">RESET MATCH</button>
     </div>
 </div>
 <script>
@@ -214,42 +213,40 @@ var geoLayers = [
     "Outer Core", "Inner Core", "Sub-Core Terminal"
 ];
 
-// --- OPPONENT ARRAYS WITH SIMULATED EVOLUTIONARY CAPABILITIES ---
+// --- COMPUTER OPPONENT ARRAY WITH BEHAVIOR MODIFIERS ---
 var opponentsRegistry = [
-    { name: "Pyrolympian", baseHp: 20, evolutionLevel: 1, dynamicTrait: "Gasifier Ignition" },
-    { name: "Dynamancer", baseHp: 22, evolutionLevel: 1, dynamicTrait: "Chemical Balancing" },
-    { name: "Flame Beautician", baseHp: 25, evolutionLevel: 1, dynamicTrait: "Subsonic Front Alignment" }
+    { name: "Pyrolympian", baseHp: 20, evolutionLevel: 1 },
+    { name: "Dynamancer", baseHp: 22, evolutionLevel: 1 },
+    { name: "Flame Beautician", baseHp: 25, evolutionLevel: 1 }
 ];
 
 var state = {
-    activeAiIndex: 0,
+    activeCompIndex: 0,
     playerHp: 20,
     playerCal: 3,
-    aiHp: 20,
+    compHp: 20,
     selectedCardIdx: null,
-    claimMap: [null, null, null, null, null, null, null, null, null], // Array of 'PLAYER' or 'AI' or null
+    claimMap: [null, null, null, null, null, null, null, null, null],
     playerHand: [],
     pool: [
-        { title: "Peat Brick", type: "Fuel", cost: 1, val: 2, text: "Ignition point: Low. Spreads heating units across deep crust." },
-        { title: "Oxygen Jet", type: "Oxidizer", cost: 1, val: 3, text: "Feeds burning vents. Accelerates core combustion." },
-        { title: "Char Wood", type: "Fuel", cost: 2, val: 5, text: "High carbon payload. Channels heavy heat down structural paths." },
-        { title: "Backdraft", type: "Blast", cost: 2, val: 4, text: "Pressure sweep. Deals instant flash damage across thermal veins." },
-        { title: "Magma Pulse", type: "Blast", cost: 3, val: 6, text: "Tectonic surges erupting directly from core horizons." }
+        { title: "Peat Brick", cost: 1, text: "Low ignition point. Claims a tectonic vein to channel thermal energy." },
+        { title: "Oxygen Jet", cost: 1, text: "Feeds chemical ratios. Stabilizes pressure lines across the layers." },
+        { title: "Char Wood", cost: 2, text: "High density carbon. Spreads deep heat through the lower mantle channels." },
+        { title: "Backdraft", cost: 2, text: "Pressure compression. Captures an open point on the volcanic grid." },
+        { title: "Magma Pulse", cost: 3, text: "Erupts directly out of the deep hot zones to seal an energy boundary." }
     ]
 };
 
-// --- WIN MATRIX INDEX COMBINATIONS ---
+// --- STATIC WIN LINES MATRIX INDEXES ---
 var winLines = [, [3, 4, 5], [6, 7, 8], // Rows, [1, 4, 7], [2, 5, 8], // Columns, [2, 4, 6]             // Diagonals
 ];
 
-// --- GAME LOG SYSTEM ---
 function writeLog(msg) {
     var logBox = document.getElementById("combat-log");
     logBox.innerHTML += "<br>" + msg;
     logBox.scrollTop = logBox.scrollHeight;
 }
 
-// --- INITIALIZE INTERFACE AND DRAW MATRIX ---
 function initGameEngine() {
     var matrixContainer = document.getElementById("matrix");
     matrixContainer.innerHTML = "";
@@ -267,25 +264,25 @@ function initGameEngine() {
     updateHudDisplay();
 }
 function selectOpponent(idx) {
-    state.activeAiIndex = idx;
-    var ai = opponentsRegistry[idx];
-    writeLog(`[TACTICAL_ENGAGEMENT]: Switched targets to ${ai.name}. Evolution Matrix at Level: ${ai.evolutionLevel}.`);
+    state.activeCompIndex = idx;
+    var comp = opponentsRegistry[idx];
+    writeLog(`[TARGET_CHANGED]: Now fighting ${comp.name}. Tier ${comp.evolutionLevel} Script active.`);
     resetGameMatch(true);
 }
 
 function resetGameMatch(fullReset) {
-    var ai = opponentsRegistry[state.activeAiIndex];
+    var comp = opponentsRegistry[state.activeCompIndex];
     state.claimMap = [null, null, null, null, null, null, null, null, null];
     state.playerCal = 3;
     state.selectedCardIdx = null;
     
     if (fullReset) {
         state.playerHp = 20;
-        state.aiHp = ai.baseHp;
+        state.compHp = comp.baseHp;
     }
     
     initGameEngine();
-    writeLog(`[GRID_FLUSH]: Thermal vectors recalibrated for matchup against ${ai.name}.`);
+    writeLog(`[GRID_RESET]: Board venting channels flushed clear.`);
 }
 
 function drawPlayerHand() {
@@ -317,23 +314,23 @@ function selectHandCard(idx) {
     }
     state.selectedCardIdx = idx;
     document.getElementById("card-"+idx).classList.add("selected");
-    writeLog(`[CARD_LOADED]: Primed ${state.playerHand[idx].title}. Choose target layer on grid.`);
+    writeLog(`[CARD_LOADED]: Ready to deploy ${state.playerHand[idx].title}. Pick a grid target.`);
 }
 
 function updateHudDisplay() {
-    var ai = opponentsRegistry[state.activeAiIndex];
+    var comp = opponentsRegistry[state.activeCompIndex];
     document.getElementById("p-hp").innerText = state.playerHp;
     document.getElementById("p-cal").innerText = state.playerCal;
-    document.getElementById("ai-name").innerText = ai.name;
-    document.getElementById("ai-evo").innerText = ai.evolutionLevel;
-    document.getElementById("ai-hp").innerText = state.aiHp;
+    document.getElementById("comp-name").innerText = comp.name;
+    document.getElementById("comp-evo").innerText = comp.evolutionLevel;
+    document.getElementById("comp-hp").innerText = state.compHp;
     
     for (var i = 0; i < 9; i++) {
         var cell = document.getElementById("cell-" + i);
         if (state.claimMap[i] === 'PLAYER') {
             cell.className = "grid-cell claimed-player";
-        } else if (state.claimMap[i] === 'AI') {
-            cell.className = "grid-cell claimed-ai";
+        } else if (state.claimMap[i] === 'COMP') {
+            cell.className = "grid-cell claimed-comp";
         } else {
             cell.className = "grid-cell";
         }
@@ -344,7 +341,7 @@ function evaluateVictoryCondition() {
     for (var i = 0; i < winLines.length; i++) {
         var line = winLines[i];
         if (state.claimMap[line[0]] && state.claimMap[line[0]] === state.claimMap[line[1]] && state.claimMap[line[1]] === state.claimMap[line[2]]) {
-            return state.claimMap[line[0]];
+            return state.claimMap[line[0]]; 
         }
     }
     if (!state.claimMap.includes(null)) return 'TIE';
@@ -353,23 +350,23 @@ function evaluateVictoryCondition() {
 
 function executePlayerMove(index) {
     if (state.selectedCardIdx === null) {
-        writeLog("[ACTION_DENIED]: Select an activation card from your primary thermal reservoir first.");
+        writeLog("[DENIED]: Select a thermal action card first.");
         return;
     }
     if (state.claimMap[index] !== null) {
-        writeLog("[VEIN_OCCUPIED]: That geo-layer thermal line has already stabilized. Choose a vacant sector.");
+        writeLog("[OCCUPIED]: Layer stabilized. Pick a structural opening.");
         return;
     }
     
     var card = state.playerHand[state.selectedCardIdx];
     if (state.playerCal < card.cost) {
-        writeLog("[ENERGY_RESERVE_LOW]: Inadequate calorie metrics remaining to trigger ignition profile.");
+        writeLog("[RESERVES_LOW]: Insufficient calories to trigger ignition.");
         return;
     }
 
     state.playerCal -= card.cost;
     state.claimMap[index] = 'PLAYER';
-    writeLog(`[PLAYER_ACTION]: Detonated ${card.title} in the **${geoLayers[index]}**. Channeling energy.`);
+    writeLog(`[PLAYER]: Fired ${card.title} at the **${geoLayers[index]}**.`);
     
     state.selectedCardIdx = null;
     drawPlayerHand();
@@ -381,94 +378,88 @@ function executePlayerMove(index) {
         return;
     }
 
-    setTimeout(executeUnlockedAiLogic, 600);
+    executeComputerScriptTurn();
 }
 function processMatchOutcome(winner) {
-    var ai = opponentsRegistry[state.activeAiIndex];
+    var comp = opponentsRegistry[state.activeCompIndex];
     if (winner === 'PLAYER') {
-        state.aiHp -= 10;
-        writeLog(`💥 [CRITICAL_IGNITION]: You claimed a column/row! ${ai.name} takes 10 thermal damage.`);
-        if(state.aiHp <= 0) {
-            if(ai.evolutionLevel < 3) {
-                ai.evolutionLevel++;
-                writeLog(`🚨 [EVOLUTION_UNLOCKED]: ${ai.name} adapted! Permanently upgraded to Evolutionary Tier ${ai.evolutionLevel}.`);
+        state.compHp -= 10;
+        writeLog(`💥 [BURST]: You matched a row! ${comp.name} takes 10 damage.`);
+        if(state.compHp <= 0) {
+            if(comp.evolutionLevel < 3) {
+                comp.evolutionLevel++;
+                writeLog(`🚨 [EVOLUTION]: ${comp.name} structural analysis complete. Upgrading to Tier ${comp.evolutionLevel}!`);
             } else {
-                writeLog(`🏆 [APEX_TERMINATED]: You have completely defeated the ultimate form of ${ai.name}!`);
+                writeLog(`🏆 [VICTORY]: You completely neutralized the apex tier of ${comp.name}!`);
             }
-            state.aiHp = ai.baseHp + (ai.evolutionLevel * 5);
+            state.compHp = comp.baseHp + (comp.evolutionLevel * 5);
         }
-    } else if (winner === 'AI') {
+    } else if (winner === 'COMP') {
         state.playerHp -= 10;
-        writeLog(`💀 [THERMAL_COLLAPSE]: ${ai.name} triggered a systemic compression chain! You took 10 damage.`);
+        writeLog(`💀 [COLLAPSE]: ${comp.name} synced a grid vector. You take 10 damage.`);
     } else if (winner === 'TIE') {
-        writeLog(`⚖️ [THERMAL_EQUILIBRIUM]: The grid reaches a stable heat capacity state. Grid reset executed.`);
+        writeLog("⚖️ [EQUILIBRIUM]: Thermal feedback balanced out. Grid resetting.");
     }
     
     if(state.playerHp <= 0) {
-        writeLog("💥 [GAME_OVER]: Core system failure. You were consumed by the subterranean magma front.");
+        writeLog("💥 [GAME_OVER]: Subterranean core overload. System restarting.");
         state.playerHp = 20;
     }
     
     setTimeout(() => { resetGameMatch(false); }, 2000);
 }
 
-function executeUnlockedAiLogic() {
-    var ai = opponentsRegistry[state.activeAiIndex];
-    var evoLevel = ai.evolutionLevel;
-    var targetCell = null;
+function executeComputerScriptTurn() {
+    var comp = opponentsRegistry[state.activeCompIndex];
+    var tier = comp.evolutionLevel;
+    var choice = null;
 
-    writeLog(`[AI_THINKING]: ${ai.name} evaluating structural vectors via Tier-${evoLevel} Logic...`);
-
-    if (evoLevel >= 2) {
+    if (tier >= 2) {
         for (var i = 0; i < winLines.length; i++) {
             var line = winLines[i];
-            var countAI = line.filter(idx => state.claimMap[idx] === 'AI').length;
-            var countEmpty = line.filter(idx => state.claimMap[idx] === null).length;
-            if (countAI === 2 && countEmpty === 1) {
-                targetCell = line.find(idx => state.claimMap[idx] === null);
-                writeLog(`🎯 [AI_STRATEGY]: ${ai.name} calculated instant victory pathway.`);
+            var compOwned = line.filter(idx => state.claimMap[idx] === 'COMP').length;
+            var emptyCells = line.filter(idx => state.claimMap[idx] === null).length;
+            if (compOwned === 2 && emptyCells === 1) {
+                choice = line.find(idx => state.claimMap[idx] === null);
                 break;
             }
         }
-
-        if (targetCell === null) {
+        if (choice === null) {
             for (var i = 0; i < winLines.length; i++) {
                 var line = winLines[i];
-                var countPlayer = line.filter(idx => state.claimMap[idx] === 'PLAYER').length;
-                var countEmpty = line.filter(idx => state.claimMap[idx] === null).length;
-                if (countPlayer === 2 && countEmpty === 1) {
-                    targetCell = line.find(idx => state.claimMap[idx] === null);
-                    writeLog(`🛡️ [AI_STRATEGY]: ${ai.name} anticipated human grid lock. Deploying suppressive countermeasures.`);
+                var playOwned = line.filter(idx => state.claimMap[idx] === 'PLAYER').length;
+                var emptyCells = line.filter(idx => state.claimMap[idx] === null).length;
+                if (playOwned === 2 && emptyCells === 1) {
+                    choice = line.find(idx => state.claimMap[idx] === null);
                     break;
                 }
             }
         }
     }
 
-    if (evoLevel === 3 && targetCell === null) {
-        var strategicNodes =; 
-        for(var n=0; n < strategicNodes.length; n++) {
-            if(state.claimMap[strategicNodes[n]] === null) {
-                targetCell = strategicNodes[n];
-                writeLog(`🌋 [AI_APEX_LOGIC]: ${ai.name} focuses output down geothermal structural points: **${geoLayers[targetCell]}**.`);
+    if (tier === 3 && choice === null) {
+        var highValueNodes =; 
+        for(var j=0; j < highValueNodes.length; j++) {
+            if(state.claimMap[highValueNodes[j]] === null) {
+                choice = highValueNodes[j];
                 break;
             }
         }
     }
 
-    if (targetCell === null) {
-        var emptyIndices = [];
+    if (choice === null) {
+        var opens = [];
         for (var i = 0; i < 9; i++) {
-            if (state.claimMap[i] === null) emptyIndices.push(i);
+            if (state.claimMap[i] === null) opens.push(i);
         }
-        if (emptyIndices.length > 0) {
-            targetCell = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        if (opens.length > 0) {
+            choice = opens[Math.floor(Math.random() * opens.length)];
         }
     }
 
-    if (targetCell !== null) {
-        state.claimMap[targetCell] = 'AI';
-        writeLog(`🤖 [AI_ACTION]: ${ai.name} stabilizes thermal influence over the **${geoLayers[targetCell]}**.`);
+    if (choice !== null) {
+        state.claimMap[choice] = 'COMP';
+        writeLog(`🤖 [COMP]: ${comp.name} locked thermal control over the **${geoLayers[choice]}**.`);
         state.playerCal = 3; 
         updateHudDisplay();
         
