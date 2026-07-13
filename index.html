@@ -203,6 +203,14 @@
             line-height: 1.3; 
             font-style: italic;
         }
+        .card-effect {
+            font-size: 0.6rem;
+            color: #ffcc00;
+            font-weight: bold;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid #ff4500;
+        }
         .card-emoji {
             font-size: 2rem;
             margin: 4px 0;
@@ -295,9 +303,46 @@
             font-style: italic;
             margin-top: 20px;
         }
+
+        .extra-turn-banner {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #ffcc00 0%, #ff6600 100%);
+            color: #000000;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 0 30px #ffcc00;
+            z-index: 999;
+            animation: slideDown 0.5s ease-out;
+            letter-spacing: 2px;
+        }
+
+        .extra-turn-banner.active {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from { 
+                transform: translateX(-50%) translateY(-50px);
+                opacity: 0;
+            }
+            to { 
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
+
+<div class="extra-turn-banner" id="extra-turn-banner">
+    ⚡ EXTRA TURN GRANTED! ⚡
+</div>
 
 <div class="game-layout">
     <div class="hud">
@@ -337,32 +382,45 @@ var geoLayers = [
     "Outer Core", "Inner Core", "Sub-Core Terminal"
 ];
 
-// --- ARTISTIC MOVE NAMES AND EMOJIS ---
+// --- ARTISTIC MOVE NAMES AND ABILITIES ---
 var moveLibrary = [
     { 
         title: "Infernal Kiss", 
         emoji: "💋",
-        text: "A seductive dance of flames ignites the deep." 
+        text: "A seductive dance of flames ignites the deep.",
+        effect: "EXTRA TURN",
+        ability: function() {
+            showExtraTurnBanner();
+            return true; // signals extra turn
+        }
     },
     { 
         title: "Magma's Whisper", 
         emoji: "🌋",
-        text: "The earth speaks in molten tongues." 
+        text: "The earth speaks in molten tongues.",
+        effect: null,
+        ability: function() { return false; }
     },
     { 
         title: "Pyroclastic Ballet", 
         emoji: "🔥",
-        text: "A graceful eruption of ash and fire." 
+        text: "A graceful eruption of ash and fire.",
+        effect: null,
+        ability: function() { return false; }
     },
     { 
         title: "Thermal Waltz", 
         emoji: "💃",
-        text: "A mesmerizing spiral of heat and pressure." 
+        text: "A mesmerizing spiral of heat and pressure.",
+        effect: null,
+        ability: function() { return false; }
     },
     { 
         title: "Inferno's Dream", 
         emoji: "✨",
-        text: "Reality bends where fire touches stone." 
+        text: "Reality bends where fire touches stone.",
+        effect: null,
+        ability: function() { return false; }
     }
 ];
 
@@ -381,7 +439,8 @@ var state = {
     claimMap: [null, null, null, null, null, null, null, null, null],
     moveMap: [null, null, null, null, null, null, null, null, null],
     playerHand: [],
-    isProcessing: false
+    isProcessing: false,
+    extraTurnActive: false
 };
 
 // --- STATIC WIN LINES MATRIX INDEXES ---
@@ -400,6 +459,14 @@ function writeLog(msg) {
     var logBox = document.getElementById("combat-log");
     logBox.innerHTML += "<br>" + msg;
     logBox.scrollTop = logBox.scrollHeight;
+}
+
+function showExtraTurnBanner() {
+    var banner = document.getElementById("extra-turn-banner");
+    banner.classList.add("active");
+    setTimeout(() => {
+        banner.classList.remove("active");
+    }, 2000);
 }
 
 function initGameEngine() {
@@ -437,6 +504,7 @@ function resetGameMatch(fullReset) {
     state.moveMap = [null, null, null, null, null, null, null, null, null];
     state.selectedCardIdx = null;
     state.isProcessing = false;
+    state.extraTurnActive = false;
     
     if (fullReset) {
         state.playerHp = 20;
@@ -460,10 +528,14 @@ function drawPlayerHand() {
         cardEl.className = "card";
         cardEl.id = "card-" + i;
         cardEl.setAttribute("onclick", "selectHandCard(" + i + ")");
+        
+        var effectHTML = randCard.effect ? `<div class="card-effect">⚡ ${randCard.effect}</div>` : '';
+        
         cardEl.innerHTML = `
             <div class="card-emoji">${randCard.emoji}</div>
             <div class="card-title">${randCard.title}</div>
             <div class="card-desc">${randCard.text}</div>
+            ${effectHTML}
         `;
         handContainer.appendChild(cardEl);
     }
@@ -548,8 +620,16 @@ function executePlayerMove(index) {
         return;
     }
     
-    // Execute computer turn after player move
-    setTimeout(() => { executeComputerScriptTurn(); }, 1000);
+    // Check if move grants extra turn
+    var hasExtraTurn = card.ability();
+    
+    if (hasExtraTurn) {
+        state.isProcessing = false;
+        writeLog(`[INFERNAL KISS]: The seductive flames grant you another move!`);
+    } else {
+        // Execute computer turn after player move
+        setTimeout(() => { executeComputerScriptTurn(); }, 1000);
+    }
 }
 
 function executeComputerScriptTurn() {
