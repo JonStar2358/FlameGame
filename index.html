@@ -304,25 +304,22 @@
             margin-top: 20px;
         }
 
-        .extra-turn-banner {
+        .banner {
             display: none;
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: linear-gradient(135deg, #ffcc00 0%, #ff6600 100%);
-            color: #000000;
             padding: 15px 30px;
             border-radius: 8px;
             font-weight: bold;
             font-size: 1.1rem;
-            box-shadow: 0 0 30px #ffcc00;
             z-index: 999;
             animation: slideDown 0.5s ease-out;
             letter-spacing: 2px;
         }
 
-        .extra-turn-banner.active {
+        .banner.active {
             display: block;
         }
 
@@ -336,12 +333,58 @@
                 opacity: 1;
             }
         }
+
+        .extra-turn-banner {
+            background: linear-gradient(135deg, #ffcc00 0%, #ff6600 100%);
+            color: #000000;
+            box-shadow: 0 0 30px #ffcc00;
+        }
+
+        .drain-banner {
+            background: linear-gradient(135deg, #ff1493 0%, #ff69b4 100%);
+            color: #ffffff;
+            box-shadow: 0 0 30px #ff1493;
+        }
+
+        .destruction-banner {
+            background: linear-gradient(135deg, #ff4500 0%, #ff8c00 100%);
+            color: #ffffff;
+            box-shadow: 0 0 30px #ff8c00;
+        }
+
+        .steal-banner {
+            background: linear-gradient(135deg, #9370db 0%, #da70d6 100%);
+            color: #ffffff;
+            box-shadow: 0 0 30px #da70d6;
+        }
+
+        .chaos-banner {
+            background: linear-gradient(135deg, #00ff00 0%, #00ff7f 100%);
+            color: #000000;
+            box-shadow: 0 0 30px #00ff7f;
+        }
     </style>
 </head>
 <body>
 
-<div class="extra-turn-banner" id="extra-turn-banner">
+<div class="banner extra-turn-banner" id="extra-turn-banner">
     ⚡ EXTRA TURN GRANTED! ⚡
+</div>
+
+<div class="banner drain-banner" id="drain-banner">
+    💗 LIFE DRAINED! 💗
+</div>
+
+<div class="banner destruction-banner" id="destruction-banner">
+    💥 PIECES OBLITERATED! 💥
+</div>
+
+<div class="banner steal-banner" id="steal-banner">
+    🎭 MOVE STOLEN! 🎭
+</div>
+
+<div class="banner chaos-banner" id="chaos-banner">
+    🌪️ CHAOS UNLEASHED! 🌪️
 </div>
 
 <div class="game-layout">
@@ -390,37 +433,49 @@ var moveLibrary = [
         text: "A seductive dance of flames ignites the deep.",
         effect: "EXTRA TURN",
         ability: function() {
-            showExtraTurnBanner();
-            return true; // signals extra turn
+            showBanner('extra-turn-banner');
+            return true;
         }
     },
     { 
         title: "Magma's Whisper", 
         emoji: "🌋",
         text: "The earth speaks in molten tongues.",
-        effect: null,
-        ability: function() { return false; }
+        effect: "DRAIN 5 HP",
+        ability: function() {
+            drainOpponentHP(5);
+            return false;
+        }
     },
     { 
         title: "Pyroclastic Ballet", 
         emoji: "🔥",
         text: "A graceful eruption of ash and fire.",
-        effect: null,
-        ability: function() { return false; }
+        effect: "DESTROY PIECE",
+        ability: function() {
+            destroyRandomOpponentPiece();
+            return false;
+        }
     },
     { 
         title: "Thermal Waltz", 
         emoji: "💃",
         text: "A mesmerizing spiral of heat and pressure.",
-        effect: null,
-        ability: function() { return false; }
+        effect: "STEAL MOVE",
+        ability: function() {
+            stealRandomOpponentMove();
+            return false;
+        }
     },
     { 
         title: "Inferno's Dream", 
         emoji: "✨",
         text: "Reality bends where fire touches stone.",
-        effect: null,
-        ability: function() { return false; }
+        effect: "SWAP BOARD",
+        ability: function() {
+            swapRandomBoardPositions();
+            return false;
+        }
     }
 ];
 
@@ -461,12 +516,88 @@ function writeLog(msg) {
     logBox.scrollTop = logBox.scrollHeight;
 }
 
-function showExtraTurnBanner() {
-    var banner = document.getElementById("extra-turn-banner");
+function showBanner(bannerId) {
+    var banner = document.getElementById(bannerId);
     banner.classList.add("active");
     setTimeout(() => {
         banner.classList.remove("active");
     }, 2000);
+}
+
+function drainOpponentHP(amount) {
+    state.compHp -= amount;
+    writeLog(`💗 [LIFE DRAINED]: Magma's Whisper drains ${amount} HP from the opponent! [${state.compHp}/20]`);
+    showBanner('drain-banner');
+    updateHudDisplay();
+}
+
+function destroyRandomOpponentPiece() {
+    var opponentPieces = [];
+    for (var i = 0; i < 9; i++) {
+        if (state.claimMap[i] === 'COMP') {
+            opponentPieces.push(i);
+        }
+    }
+    
+    if (opponentPieces.length > 0) {
+        var targetIdx = opponentPieces[Math.floor(Math.random() * opponentPieces.length)];
+        state.claimMap[targetIdx] = null;
+        state.moveMap[targetIdx] = null;
+        writeLog(`💥 [OBLITERATION]: Pyroclastic Ballet destroys the opponent's piece at **${geoLayers[targetIdx]}**!`);
+        showBanner('destruction-banner');
+        updateHudDisplay();
+    } else {
+        writeLog(`💥 [OBLITERATION]: Pyroclastic Ballet finds no opponent pieces to destroy.`);
+    }
+}
+
+function stealRandomOpponentMove() {
+    var opponentMoves = [];
+    for (var i = 0; i < 9; i++) {
+        if (state.claimMap[i] === 'COMP') {
+            opponentMoves.push(i);
+        }
+    }
+    
+    if (opponentMoves.length > 0) {
+        var targetIdx = opponentMoves[Math.floor(Math.random() * opponentMoves.length)];
+        state.claimMap[targetIdx] = 'PLAYER';
+        var stolenMove = state.moveMap[targetIdx];
+        writeLog(`🎭 [MOVE STOLEN]: Thermal Waltz steals the opponent's **${stolenMove.title}** from **${geoLayers[targetIdx]}**!`);
+        showBanner('steal-banner');
+        updateHudDisplay();
+    } else {
+        writeLog(`🎭 [MOVE STOLEN]: Thermal Waltz finds no opponent moves to steal.`);
+    }
+}
+
+function swapRandomBoardPositions() {
+    var claimedCells = [];
+    for (var i = 0; i < 9; i++) {
+        if (state.claimMap[i] !== null) {
+            claimedCells.push(i);
+        }
+    }
+    
+    if (claimedCells.length >= 2) {
+        var idx1 = claimedCells[Math.floor(Math.random() * claimedCells.length)];
+        var idx2 = claimedCells[Math.floor(Math.random() * claimedCells.length)];
+        
+        if (idx1 !== idx2) {
+            var tempClaim = state.claimMap[idx1];
+            var tempMove = state.moveMap[idx1];
+            state.claimMap[idx1] = state.claimMap[idx2];
+            state.moveMap[idx1] = state.moveMap[idx2];
+            state.claimMap[idx2] = tempClaim;
+            state.moveMap[idx2] = tempMove;
+            
+            writeLog(`🌪️ [CHAOS]: Inferno's Dream swaps pieces between **${geoLayers[idx1]}** and **${geoLayers[idx2]}**!`);
+            showBanner('chaos-banner');
+            updateHudDisplay();
+        }
+    } else {
+        writeLog(`🌪️ [CHAOS]: Inferno's Dream has nowhere to swap!`);
+    }
 }
 
 function initGameEngine() {
